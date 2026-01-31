@@ -137,3 +137,12 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Expo / React Native
+.expo/
+.expo-shared/
+web-build/
+ios/Pods/
+
+# MacOS
+.DS_Store
