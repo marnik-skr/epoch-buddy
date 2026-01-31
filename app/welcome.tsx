@@ -1,16 +1,18 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Alert, Platform, Pressable, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Alert, Pressable, StyleSheet } from 'react-native';
 
 import { connectWallet } from '../src/solana/connectWallet';
+import { savePubkey } from '../src/solana/session';
 
 export default function WelcomeScreen() {
+  const router = useRouter();
+
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title">Welcome to Epoch Buddy</ThemedText>
-      <ThemedText type="subtitle">
-        Your Solana wallet, organised.
-      </ThemedText>
+      <ThemedText type="subtitle">Your Solana wallet, organised.</ThemedText>
 
       <ThemedView style={styles.card}>
         <ThemedText type="defaultSemiBold">What you can do</ThemedText>
@@ -19,29 +21,23 @@ export default function WelcomeScreen() {
         <ThemedText>• Smart reminders</ThemedText>
       </ThemedView>
 
-      <Pressable 
+      <Pressable
         style={styles.button}
-        onPress={async() => {
-            if (Platform.OS !== 'android') {
-                Alert.alert(
-                    'Wallet connect is Android-only (for now)',
-                    'Solana Mobile wallet connect works on Saga/Seeker.'
-                );
-                return;
-            }
-            
-            try {
-                const pubkey = await connectWallet();
-                Alert.alert('Connected!', pubkey);
-            } catch (e: any) {
-                Alert.alert('Connect failed', e?.message ?? String(e));
-            }
+        onPress={async () => {
+          try {
+            const pubkey = await connectWallet();
 
+            await savePubkey(pubkey);
+            router.replace('/');
+
+            // optional:
+            // Alert.alert('Connected!', pubkey);
+          } catch (e: any) {
+            Alert.alert('Connect failed', e?.message ?? String(e));
+          }
         }}
       >
-        <ThemedText type="defaultSemiBold">
-          Connect Wallet
-        </ThemedText>
+        <ThemedText type="defaultSemiBold">Connect Wallet</ThemedText>
       </Pressable>
     </ThemedView>
   );
