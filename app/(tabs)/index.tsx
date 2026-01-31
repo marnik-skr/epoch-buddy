@@ -1,30 +1,9 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Redirect } from 'expo-router';
+import { StyleSheet } from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
 
 export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="title">Epoch Buddy</ThemedText>
-      <ThemedText type="subtitle">Your Solana wallet, organised.</ThemedText>
-
-      <ThemedView style={styles.card}>
-        <ThemedText type="defaultSemiBold">Wallet Snapshot</ThemedText>
-        <ThemedText>Balance: —</ThemedText>
-        <ThemedText>Epoch: —</ThemedText>
-      </ThemedView>
-
-      <ThemedView style={styles.card}>
-        <ThemedText type="defaultSemiBold">Daily Check-In</ThemedText>
-        <ThemedText>Coming next 👀</ThemedText>
-      </ThemedView>
-    </ThemedView>
-  );
+  return <Redirect href="/welcome" />;
 }
 
 
