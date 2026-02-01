@@ -1,5 +1,5 @@
 import { ThemedText } from "@/components/themed-text";
-import { useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -11,140 +11,152 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { connectWallet } from "../src/solana/connectWallet";
 import { loadPubkey, savePubkey } from "../src/solana/session";
-import { shortAddress } from "../src/ui/walletUi";
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [lastPubkey, setLastPubkey] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
 
-  // fade/slide animation
+  const [busy, setBusy] = useState(false);
+
+  // animate only when we actually show Welcome
   const fade = useRef(new Animated.Value(0)).current;
-  const slide = useRef(new Animated.Value(10)).current;
+  const slide = useRef(new Animated.Value(12)).current;
 
   useEffect(() => {
-    // load last connected wallet for display (if any)
+    let alive = true;
+
     (async () => {
       const k = await loadPubkey();
-      setLastPubkey(k);
+
+      // ✅ already connected -> skip welcome entirely
+      if (k) {
+        router.replace("/(tabs)");
+        return;
+      }
+
+      if (!alive) return;
+
+      // ✅ only animate when we show this screen
+      Animated.parallel([
+        Animated.timing(fade, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slide, {
+          toValue: 0,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+      ]).start();
     })();
 
-    Animated.parallel([
-      Animated.timing(fade, {
-        toValue: 1,
-        duration: 380,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slide, {
-        toValue: 0,
-        duration: 380,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
+    return () => {
+      alive = false;
+    };
+  }, [fade, slide, router]);
 
   return (
-    <LinearGradient
-      // dark → green → dark (classy, not “casino”)
-      colors={["#070b0a", "#0c1b14", "#070b0a"]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.screen}
-    >
-      {/* soft background blobs */}
-      <View style={[styles.blob, styles.blobA]} />
-      <View style={[styles.blob, styles.blobB]} />
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
 
-      <Animated.View
-        style={[
-          styles.card,
-          { opacity: fade, transform: [{ translateY: slide }] },
-        ]}
+      <LinearGradient
+        colors={["#070b0a", "#0c1b14", "#070b0a"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.bg}
       >
-        <ThemedText type="title" style={styles.title}>
-          Welcome to Epoch Buddy
-        </ThemedText>
+        {/* blobs */}
+        <View style={[styles.blob, styles.blobA]} />
+        <View style={[styles.blob, styles.blobB]} />
 
-        <ThemedText style={styles.subtitle}>
-          Track Solana epoch progress, set reminders, and switch wallets fast.
-        </ThemedText>
-
-        {lastPubkey ? (
-          <ThemedText style={styles.lastWallet}>
-            Last wallet: {shortAddress(lastPubkey)}
-          </ThemedText>
-        ) : (
-          <ThemedText style={styles.lastWalletMuted}>
-            No wallet connected yet
-          </ThemedText>
-        )}
-
-        <Pressable
-          disabled={busy}
-          style={({ pressed }) => [
-            styles.button,
-            busy && styles.buttonDisabled,
-            pressed && !busy
-              ? { transform: [{ scale: 0.99 }], opacity: 0.92 }
-              : null,
+        {/* content respects safe area, background stays full screen */}
+        <View
+          style={[
+            styles.content,
+            { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 },
           ]}
-          onPress={async () => {
-            try {
-              setBusy(true);
-              await Haptics.selectionAsync();
-
-              const pubkey = await connectWallet();
-              await savePubkey(pubkey);
-
-              // update “Last wallet” immediately
-              setLastPubkey(pubkey);
-
-              await Haptics.notificationAsync(
-                Haptics.NotificationFeedbackType.Success
-              );
-              router.replace("/(tabs)");
-            } catch (e: any) {
-              console.log("WELCOME connect error =", e);
-              Alert.alert("Connect failed", e?.message ?? String(e));
-            } finally {
-              setBusy(false);
-            }
-          }}
         >
-          {busy ? (
-            <View style={styles.btnInner}>
-              <ActivityIndicator />
-              <ThemedText type="defaultSemiBold" style={styles.btnText}>
-                Connecting…
-              </ThemedText>
-            </View>
-          ) : (
-            <ThemedText type="defaultSemiBold" style={styles.btnText}>
-              Connect Wallet
+          <Animated.View
+            style={[
+              styles.card,
+              { opacity: fade, transform: [{ translateY: slide }] },
+            ]}
+          >
+            <ThemedText type="title" style={styles.title}>
+              Welcome to Epoch Buddy
             </ThemedText>
-          )}
-        </Pressable>
 
-        <ThemedText style={styles.signatureNote}>
-          No funds moved. Signature only.
-        </ThemedText>
+            <ThemedText style={styles.subtitle}>
+              Track Solana epoch progress, set reminders, and switch wallets fast.
+            </ThemedText>
 
-        <ThemedText style={styles.hint}>
-          Tip: pull down on the Epoch screen to refresh.
-        </ThemedText>
-      </Animated.View>
-    </LinearGradient>
+            <Pressable
+              disabled={busy}
+              style={({ pressed }) => [
+                styles.button,
+                busy && styles.buttonDisabled,
+                pressed && !busy
+                  ? { transform: [{ scale: 0.99 }], opacity: 0.92 }
+                  : null,
+              ]}
+              onPress={async () => {
+                try {
+                  setBusy(true);
+                  await Haptics.selectionAsync();
+
+                  const pubkey = await connectWallet();
+                  await savePubkey(pubkey);
+
+                  await Haptics.notificationAsync(
+                    Haptics.NotificationFeedbackType.Success
+                  );
+                  router.replace("/(tabs)");
+                } catch (e: any) {
+                  Alert.alert("Connect failed", e?.message ?? String(e));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              {busy ? (
+                <View style={styles.btnInner}>
+                  <ActivityIndicator />
+                  <ThemedText type="defaultSemiBold" style={styles.btnText}>
+                    Connecting…
+                  </ThemedText>
+                </View>
+              ) : (
+                <ThemedText type="defaultSemiBold" style={styles.btnText}>
+                  Connect Wallet
+                </ThemedText>
+              )}
+            </Pressable>
+
+            <ThemedText style={styles.signatureNote}>
+              No funds moved. Signature only.
+            </ThemedText>
+
+            <ThemedText style={styles.hint}>
+              Tip: pull down on the Epoch screen to refresh.
+            </ThemedText>
+          </Animated.View>
+        </View>
+      </LinearGradient>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  bg: { flex: 1 },
+
+  content: {
     flex: 1,
-    padding: 20,
-    paddingTop: 90,
+    paddingHorizontal: 20,
     justifyContent: "center",
   },
 
@@ -159,16 +171,6 @@ const styles = StyleSheet.create({
 
   title: { marginBottom: 4 },
   subtitle: { opacity: 0.75, lineHeight: 20 },
-
-  lastWallet: {
-    opacity: 0.85,
-    fontFamily: "monospace",
-    marginTop: 2,
-  },
-  lastWalletMuted: {
-    opacity: 0.55,
-    marginTop: 2,
-  },
 
   button: {
     marginTop: 10,
@@ -195,5 +197,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(80,255,160,0.10)",
   },
   blobA: { top: 30, left: -110 },
-  blobB: { bottom: 60, right: -120, backgroundColor: "rgba(120,160,255,0.08)" },
+  blobB: {
+    bottom: 60,
+    right: -120,
+    backgroundColor: "rgba(120,160,255,0.08)",
+  },
 });
