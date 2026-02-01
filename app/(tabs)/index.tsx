@@ -9,11 +9,15 @@ import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 
 import { disconnectWallet } from "../../src/solana/disconnectWallet";
-import { clearPubkey, loadPubkey } from "../../src/solana/session";
+import { clearPubkey, loadPubkey, savePubkey } from "../../src/solana/session";
 import { shortAddress } from "../../src/ui/walletUi";
 
 import { useEpochCountdown } from "../../src/hooks/useEpochCountdown";
 import { formatHMS } from "../../src/solana/epoch";
+
+import { ScrollView, RefreshControl } from "react-native";
+
+import { connectWallet } from "../../src/solana/connectWallet";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -23,13 +27,33 @@ export default function HomeScreen() {
   const [pubkey, setPubkey] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
-  const { status, eta, error, secondsSinceUpdate } = useEpochCountdown();
+  const { status, eta, error, secondsSinceUpdate, refresh: refreshEpoch } = useEpochCountdown();
 
   const progress =
     status && status.slotsInEpoch > 0 ? status.slotIndex / status.slotsInEpoch : 0;
 
   const progressPct = Math.max(0, Math.min(1, progress));
   const progressLabel = `${(progressPct * 100).toFixed(1)}%`;
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refreshAll = useCallback(async () => {
+    try {
+      setRefreshing(true);
+
+      // refresh wallet pubkey
+      const k = await loadPubkey();
+      setPubkey(k);
+
+      // refresh epoch
+      await refreshEpoch?.();
+
+      await Haptics.selectionAsync();
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
 
   // “Next epoch at ~HH:MM” (local time)
   const nextEpochAt = new Date(Date.now() + eta * 1000).toLocaleTimeString(
@@ -59,7 +83,12 @@ export default function HomeScreen() {
   if (!pubkey) return <Redirect href="/welcome" />;
 
   return (
-    <ThemedView style={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={refreshAll} />
+      }
+    >
       <ThemedText type="title">Epoch</ThemedText>
 
       {/* Wallet */}
@@ -185,7 +214,31 @@ export default function HomeScreen() {
       >
         <ThemedText type="defaultSemiBold">Disconnect</ThemedText>
       </Pressable>
-    </ThemedView>
+
+      {/* Switch Wallet */}
+      <Pressable
+        style={styles.switchWallet}
+        onPress={async () => {
+          try {
+            // revoke current session
+            await disconnectWallet();
+            await clearPubkey();
+
+            // connect again (wallet will let user pick/change account)
+            const next = await connectWallet();
+            await savePubkey(next);
+            setPubkey(next);
+
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } catch (e: any) {
+            Alert.alert("Switch wallet failed", e?.message ?? String(e));
+          }
+        }}
+      >
+        <ThemedText type="defaultSemiBold">Switch wallet</ThemedText>
+      </Pressable>
+
+    </ScrollView>
   );
 }
 
@@ -288,5 +341,12 @@ const styles = StyleSheet.create({
 
   updatedText: { opacity: 0.65, marginTop: -2 },
 
+  switchWallet: {
+    marginTop: 14,
+    padding: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.10)",
+  },
 
 });

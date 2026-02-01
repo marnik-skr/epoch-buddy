@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Connection } from "@solana/web3.js";
 import { EpochStatus, fetchEpochStatus } from "../solana/epoch";
 
@@ -10,14 +10,19 @@ export function useEpochCountdown(
   const [status, setStatus] = useState<EpochStatus | null>(null);
   const [eta, setEta] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
-
-  // ✅ this must exist
   const [secondsSinceUpdate, setSecondsSinceUpdate] = useState<number>(0);
+
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  // ✅ exposed manual refresh
+  const refresh = useCallback(() => {
+    setRefreshTick((v) => v + 1);
+  }, []);
 
   useEffect(() => {
     let alive = true;
 
-    const refresh = async () => {
+    const fetchNow = async () => {
       try {
         setError(null);
         const s = await fetchEpochStatus(conn);
@@ -25,8 +30,6 @@ export function useEpochCountdown(
 
         setStatus(s);
         setEta(s.etaSeconds);
-
-        // ✅ reset counter each successful refresh
         setSecondsSinceUpdate(0);
       } catch (e: any) {
         if (!alive) return;
@@ -35,23 +38,25 @@ export function useEpochCountdown(
       }
     };
 
-    refresh();
-    const poll = setInterval(refresh, 30_000);
+    fetchNow();
+    const poll = setInterval(fetchNow, 30_000);
+
     return () => {
       alive = false;
       clearInterval(poll);
     };
-  }, [conn]);
+  }, [conn, refreshTick]);
 
   useEffect(() => {
     if (!status) return;
+
     const t = setInterval(() => {
       setEta((v) => Math.max(0, v - 1));
       setSecondsSinceUpdate((v) => v + 1);
     }, 1000);
+
     return () => clearInterval(t);
   }, [status]);
 
-  // ✅ this must be returned
-  return { status, eta, error, secondsSinceUpdate };
+  return { status, eta, error, secondsSinceUpdate, refresh };
 }
