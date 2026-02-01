@@ -23,7 +23,20 @@ export default function HomeScreen() {
   const [pubkey, setPubkey] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
-  const { status, eta, error } = useEpochCountdown();
+  const { status, eta, error, secondsSinceUpdate } = useEpochCountdown();
+
+  const progress =
+    status && status.slotsInEpoch > 0 ? status.slotIndex / status.slotsInEpoch : 0;
+
+  const progressPct = Math.max(0, Math.min(1, progress));
+  const progressLabel = `${(progressPct * 100).toFixed(1)}%`;
+
+  // “Next epoch at ~HH:MM” (local time)
+  const nextEpochAt = new Date(Date.now() + eta * 1000).toLocaleTimeString(
+    undefined,
+    { hour: "2-digit", minute: "2-digit" }
+  );
+
 
   useFocusEffect(
     useCallback(() => {
@@ -44,12 +57,6 @@ export default function HomeScreen() {
 
   if (!ready) return null;
   if (!pubkey) return <Redirect href="/welcome" />;
-
-  const progress =
-    status && status.slotsInEpoch > 0 ? status.slotIndex / status.slotsInEpoch : 0;
-
-  const progressPct = Math.max(0, Math.min(1, progress));
-
 
   return (
     <ThemedView style={styles.container}>
@@ -93,6 +100,11 @@ export default function HomeScreen() {
           <>
             <ThemedText style={styles.bigTimer}>{formatHMS(eta)}</ThemedText>
 
+            {/* small trust label */}
+            <ThemedText style={styles.updatedText}>
+              Updated {secondsSinceUpdate}s ago • Next epoch ~{nextEpochAt}
+            </ThemedText>
+
             {/* Progress bar */}
             <View style={styles.progressTrack}>
               <View
@@ -103,8 +115,9 @@ export default function HomeScreen() {
               />
             </View>
 
+            {/* progress % */}
             <ThemedText style={styles.muted}>
-              Epoch {status.epoch} • Slot {status.slotIndex} / {status.slotsInEpoch}
+              {progressLabel} • Epoch {status.epoch} • Slot {status.slotIndex} / {status.slotsInEpoch}
             </ThemedText>
 
             <ThemedText style={styles.muted}>
@@ -272,5 +285,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.12)",
   },
+
+  updatedText: { opacity: 0.65, marginTop: -2 },
+
 
 });
