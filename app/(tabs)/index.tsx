@@ -3,7 +3,7 @@ import { ThemedView } from "@/components/themed-view";
 import { useFocusEffect } from "@react-navigation/native";
 import { Redirect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { Alert, Pressable, StyleSheet } from "react-native";
+import { Alert, Pressable, StyleSheet, View, Modal } from "react-native";
 
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
@@ -17,6 +17,7 @@ import { formatHMS } from "../../src/solana/epoch";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const [showEpochInfo, setShowEpochInfo] = useState(false);
 
   const [copied, setCopied] = useState(false);
   const [pubkey, setPubkey] = useState<string | null>(null);
@@ -44,6 +45,12 @@ export default function HomeScreen() {
   if (!ready) return null;
   if (!pubkey) return <Redirect href="/welcome" />;
 
+  const progress =
+    status && status.slotsInEpoch > 0 ? status.slotIndex / status.slotsInEpoch : 0;
+
+  const progressPct = Math.max(0, Math.min(1, progress));
+
+
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title">Epoch</ThemedText>
@@ -70,12 +77,36 @@ export default function HomeScreen() {
 
       {/* Epoch countdown */}
       <ThemedView style={styles.card}>
-        <ThemedText type="subtitle">Epoch status</ThemedText>
+        <View style={styles.cardHeader}>
+          <ThemedText type="subtitle">Epoch status</ThemedText>
+
+          <Pressable
+            onPress={() => setShowEpochInfo(true)}
+            hitSlop={10}
+            style={styles.infoBtn}
+          >
+            <ThemedText style={styles.infoBtnText}>i</ThemedText>
+          </Pressable>
+        </View>
 
         {status ? (
           <>
             <ThemedText style={styles.bigTimer}>{formatHMS(eta)}</ThemedText>
-            <ThemedText style={styles.muted}>Epoch: {status.epoch}</ThemedText>
+
+            {/* Progress bar */}
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${Math.round(progressPct * 100)}%` },
+                ]}
+              />
+            </View>
+
+            <ThemedText style={styles.muted}>
+              Epoch {status.epoch} • Slot {status.slotIndex} / {status.slotsInEpoch}
+            </ThemedText>
+
             <ThemedText style={styles.muted}>
               ~{status.secsPerSlot.toFixed(3)}s/slot
             </ThemedText>
@@ -88,6 +119,40 @@ export default function HomeScreen() {
           <ThemedText style={styles.muted}>Loading epoch…</ThemedText>
         )}
       </ThemedView>
+
+      {/* Epoch info modal */}
+      <Modal
+        visible={showEpochInfo}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEpochInfo(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowEpochInfo(false)}>
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <ThemedText type="title">What’s an epoch?</ThemedText>
+
+            <ThemedText style={styles.modalText}>
+              A Solana epoch is a time window made of many slots. During an epoch,
+              validators earn rewards and the network tracks performance.
+            </ThemedText>
+
+            <ThemedText style={styles.modalText}>
+              • The big timer is an estimate for when the next epoch starts.
+            </ThemedText>
+            <ThemedText style={styles.modalText}>
+              • The bar shows how far we are through the current epoch (by slot count).
+            </ThemedText>
+
+            <Pressable
+              onPress={() => setShowEpochInfo(false)}
+              style={styles.modalClose}
+            >
+              <ThemedText type="defaultSemiBold">Got it</ThemedText>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
 
       {/* Disconnect */}
       <Pressable
@@ -149,4 +214,63 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(255,80,80,0.18)",
   },
+
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  infoBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.10)",
+  },
+
+  infoBtnText: {
+    opacity: 0.85,
+    fontFamily: "monospace",
+  },
+
+  progressTrack: {
+    height: 10,
+    borderRadius: 999,
+    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.10)",
+    marginTop: 8,
+    marginBottom: 6,
+  },
+
+  progressFill: {
+    height: "100%",
+    backgroundColor: "rgba(80,255,160,0.35)",
+  },
+
+  modalOverlay: {
+    flex: 1,
+    padding: 20,
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+
+  modalCard: {
+    borderRadius: 16,
+    padding: 16,
+    gap: 10,
+    backgroundColor: "rgba(30,30,30,0.96)",
+  },
+
+  modalText: { opacity: 0.85, lineHeight: 20 },
+
+  modalClose: {
+    marginTop: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
+
 });
