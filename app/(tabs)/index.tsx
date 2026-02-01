@@ -6,8 +6,12 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, StyleSheet } from 'react-native';
 import { disconnectWallet } from '../../src/solana/disconnectWallet';
 import { clearPubkey, loadPubkey } from '../../src/solana/session';
+import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
+import { shortAddress } from "../../src/ui/walletUi";
 
 export default function HomeScreen() {
+  const [copied, setCopied] = useState(false);
   const router = useRouter();
   const [pubkey, setPubkey] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -37,16 +41,34 @@ export default function HomeScreen() {
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title">Epoch</ThemedText>
-      <ThemedText type="subtitle">Connected wallet:</ThemedText>
-      <ThemedText selectable>{pubkey}</ThemedText>
+      <ThemedText type="subtitle">Connected wallet</ThemedText>
 
-      {/* 🔴 Disconnect button */}
+      <Pressable
+        onPress={async () => {
+          await Clipboard.setStringAsync(pubkey);
+          await Haptics.selectionAsync();
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1200);
+        }}
+        style={styles.addrWrap}
+      >
+        <ThemedText style={styles.addrText}>
+          {shortAddress(pubkey)}
+        </ThemedText>
+        <ThemedText style={styles.addHint}>
+          {copied ? "Copied" : "Tap to copy"}
+        </ThemedText>
+      </Pressable>
+
+      <ThemedText style={styles.chip}>Connected</ThemedText>
+
       <Pressable
         style={styles.disconnect}
         onPress={async () => {
           try {
             await disconnectWallet(); // revoke wallet auth
             await clearPubkey();      // clear local session
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             router.replace('/welcome');
           } catch (e: any) {
             Alert.alert('Disconnect failed', e?.message ?? String(e));
@@ -61,6 +83,19 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  addrWrap: { marginTop: 8, gap: 6 },
+  addrText: { fontSize: 22, fontFamily: "monospace" },
+  addrHint: { opacity: 0.7 },
+  seekerId: { opacity: 0.85 },
+  chip: {
+    alignSelf: "flex-start",
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(80,255,160,0.12)",
+  },
+
   container: {
     flex: 1,
     padding: 20,
