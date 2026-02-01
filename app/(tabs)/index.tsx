@@ -19,6 +19,9 @@ import { ScrollView, RefreshControl } from "react-native";
 
 import { connectWallet } from "../../src/solana/connectWallet";
 
+import { Switch } from "react-native";
+import { scheduleEpochNotifications, clearEpochNotifications } from "../../src/notifications/epochNotifications";
+
 export default function HomeScreen() {
   const router = useRouter();
   const [showEpochInfo, setShowEpochInfo] = useState(false);
@@ -34,6 +37,9 @@ export default function HomeScreen() {
 
   const progressPct = Math.max(0, Math.min(1, progress));
   const progressLabel = `${(progressPct * 100).toFixed(1)}%`;
+
+  const [notify1h, setNotify1h] = useState(true);
+  const [notifyEnd, setNotifyEnd] = useState(true);
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -238,6 +244,49 @@ export default function HomeScreen() {
         <ThemedText type="defaultSemiBold">Switch wallet</ThemedText>
       </Pressable>
 
+      {/* Notifications Card */}
+      <ThemedView style={styles.card}>
+        <ThemedText type="subtitle">Notifications</ThemedText>
+
+        <View style={styles.row}>
+          <ThemedText>1 hour left</ThemedText>
+          <Switch value={notify1h} onValueChange={setNotify1h} />
+        </View>
+
+        <View style={styles.row}>
+          <ThemedText>Epoch end</ThemedText>
+          <Switch value={notifyEnd} onValueChange={setNotifyEnd} />
+        </View>
+
+        <Pressable
+          style={styles.notifBtn}
+          onPress={async () => {
+            if (!status) return;
+            await scheduleEpochNotifications({
+              etaSeconds: eta,
+              epoch: status.epoch,
+              notifyAtOneHour: notify1h,
+              notifyAtEnd: notifyEnd,
+            });
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            Alert.alert("Scheduled ✅", "Notifications updated.");
+          }}
+        >
+          <ThemedText type="defaultSemiBold">Update notifications</ThemedText>
+        </Pressable>
+
+        <Pressable
+          style={styles.notifBtnSecondary}
+          onPress={async () => {
+            await clearEpochNotifications();
+            Alert.alert("Cleared ✅", "All epoch notifications removed.");
+          }}
+        >
+          <ThemedText type="defaultSemiBold">Clear notifications</ThemedText>
+        </Pressable>
+      </ThemedView>
+
+
     </ScrollView>
   );
 }
@@ -347,6 +396,27 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.10)",
+  },
+
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 6,
+  },
+  notifBtn: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
+  notifBtnSecondary: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
   },
 
 });
