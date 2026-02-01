@@ -47,8 +47,8 @@ export default function HomeScreen() {
     useEpochCountdown();
 
   // notifications prefs + status
-  const [notify1h, setNotify1h] = useState(true);
-  const [notifyEnd, setNotifyEnd] = useState(true);
+  const [notify1h, setNotify1h] = useState(false);
+  const [notifyEnd, setNotifyEnd] = useState(false);
   const [scheduledCount, setScheduledCount] = useState<number>(0);
   const [scheduledAgeSec, setScheduledAgeSec] = useState<number | null>(null);
 
@@ -118,28 +118,34 @@ export default function HomeScreen() {
   }, [scheduledAgeSec]);
 
   const rescheduleEpochNotifs = useCallback(
-    async (reason: string) => {
+    async (reason: string, next1h: boolean, nextEnd: boolean) => {
       if (!status) return;
 
-      // persist toggles
-      await SecureStore.setItemAsync(NOTIF_1H_KEY, notify1h ? "1" : "0");
-      await SecureStore.setItemAsync(NOTIF_END_KEY, notifyEnd ? "1" : "0");
+      await SecureStore.setItemAsync(NOTIF_1H_KEY, next1h ? "1" : "0");
+      await SecureStore.setItemAsync(NOTIF_END_KEY, nextEnd ? "1" : "0");
+
+      if (!next1h && !nextEnd) {
+        await clearEpochNotifications();
+        setScheduledCount(0);
+        setScheduledAgeSec(null);
+        return;
+      }
 
       const ids = await scheduleEpochNotifications({
         etaSeconds: eta,
         epoch: status.epoch,
-        notifyAtOneHour: notify1h,
-        notifyAtEnd: notifyEnd,
+        notifyAtOneHour: next1h,
+        notifyAtEnd: nextEnd,
       });
 
       await SecureStore.setItemAsync(NOTIF_LAST_KEY, String(Date.now()));
-      setScheduledAgeSec(0);
       setScheduledCount(ids.length);
-
-      console.log("NOTIFS rescheduled:", reason, ids.length);
+      setScheduledAgeSec(0);
     },
-    [status, eta, notify1h, notifyEnd]
+    [status, eta]
   );
+
+
 
   // AUTO reschedule (debounced) when epoch/toggles change
   useEffect(() => {
@@ -340,9 +346,13 @@ export default function HomeScreen() {
           <ThemedText>1 hour left</ThemedText>
           <Switch
             value={notify1h}
-            onValueChange={async (v) => {
-              setNotify1h(v);
-              await rescheduleEpochNotifs("toggle-1h");
+            onValueChange={(v) => {
+              const next1h = v;
+              const nextEnd = notifyEnd;
+              setNotify1h(next1h);
+              setTimeout(() => {
+                rescheduleEpochNotifs("toggle-1h", next1h, nextEnd);
+              }, 0);
             }}
           />
         </View>
@@ -351,12 +361,18 @@ export default function HomeScreen() {
           <ThemedText>Epoch end</ThemedText>
           <Switch
             value={notifyEnd}
-            onValueChange={async (v) => {
-              setNotifyEnd(v);
-              await rescheduleEpochNotifs("toggle-end");
+            onValueChange={(v) => {
+              const nextEnd = v;
+              const next1h = notify1h;
+              setNotifyEnd(nextEnd);
+              setTimeout(() => {
+                rescheduleEpochNotifs("toggle-end", next1h, nextEnd);
+              }, 0);
             }}
           />
         </View>
+
+
 
         <Pressable
           style={styles.notifBtnSecondary}
