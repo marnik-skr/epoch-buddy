@@ -1,3 +1,12 @@
+function cookieHeaderFromSetCookie(setCookie: string[] | null) {
+  if (!setCookie?.length) return "";
+  // turn ["a=1; Path=/; HttpOnly", "b=2; Path=/"] into "a=1; b=2"
+  return setCookie
+    .map((c) => c.split(";")[0])
+    .filter(Boolean)
+    .join("; ");
+}
+
 export default {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -29,35 +38,55 @@ export default {
       m: [],
     };
 
-    // ✅ EXACT shape the browser used (GET with payload in query)
     const payloadEncoded = encodeURIComponent(JSON.stringify(payload));
     const target = `${base}?payload=${payloadEncoded}`;
 
+    const browserHeaders: Record<string, string> = {
+      "User-Agent": "Mozilla/5.0",
+      Accept: "application/json, text/plain, */*",
+      Referer: "https://stake.solanamobile.com/",
+      Origin: "https://stake.solanamobile.com",
+    };
+
+    // 1) Prime cookies/session (often required)
+    const warm = await fetch("https://stake.solanamobile.com/", {
+      headers: browserHeaders,
+      redirect: "follow",
+      cf: { cacheTtl: 0, cacheEverything: false },
+    });
+
+    // In Workers, getAll("set-cookie") is supported
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const setCookie = (warm.headers as any).getAll
+      ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (warm.headers as any).getAll("set-cookie")
+      : null;
+
+    const cookie = cookieHeaderFromSetCookie(setCookie);
+
+    // 2) Call serverFn with cookies
     const r = await fetch(target, {
       method: "GET",
       headers: {
-        "User-Agent": "Mozilla/5.0",
-        Accept: "application/json, text/plain, */*",
-        Referer: "https://stake.solanamobile.com/",
-        Origin: "https://stake.solanamobile.com",
-        "Accept-Language": "en-US,en;q=0.9",
-
-        // these “browser-ish” headers can matter on some setups
-        "Sec-Fetch-Site": "same-origin",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Dest": "empty",
+        ...browserHeaders,
+        ...(cookie ? { Cookie: cookie } : {}),
       },
       redirect: "follow",
       cf: { cacheTtl: 0, cacheEverything: false },
     });
 
-    const text = await r.text();
+    const ab = await r.arrayBuffer();
+    const bytes = new Uint8Array(ab);
+    const text = new TextDecoder("utf-8").decode(bytes);
 
-    // If upstream is still empty, return JSON debug (so we can see exactly why)
+    // Debug if still empty
     if (!text || text.trim().length === 0) {
       const err = {
         ok: false,
         upstreamStatus: r.status,
+        upstreamByteLength: bytes.byteLength,
+        warmStatus: warm.status,
+        cookiePresent: Boolean(cookie),
         upstreamHeaders: Object.fromEntries(r.headers.entries()),
       };
       return new Response(JSON.stringify(err, null, 2), {
