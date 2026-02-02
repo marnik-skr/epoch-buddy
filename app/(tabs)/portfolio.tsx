@@ -148,7 +148,9 @@ export default function PortfolioScreen() {
   const epochsPerYearEst = 365 / EPOCH_DAYS_EST;
   const estSolPerEpoch = solStaked * (DEFAULT_SOL_APY / epochsPerYearEst);
 
-  const showIdleWarning = solBalance >= 0.01;
+  const RENT_BUFFER_SOL = 0.005; // conservative buffer
+  const stakeableIdleSol = Math.max(0, solBalance - RENT_BUFFER_SOL);
+  const showIdleWarning = stakeableIdleSol >= 0.01;
 
   return (
     <ScrollView
@@ -184,7 +186,7 @@ export default function PortfolioScreen() {
 
         {showIdleWarning ? (
           <ThemedText style={[styles.muted, { color: "#ffd28a" }]}>
-            ⚠️ You have {solBalance.toFixed(4)} SOL idle (unstaked).
+            ⚠️ You have ~{stakeableIdleSol.toFixed(4)} SOL safely stakeable.
           </ThemedText>
         ) : (
           <ThemedText style={styles.muted}>✅ Little/no idle SOL</ThemedText>
@@ -213,10 +215,6 @@ export default function PortfolioScreen() {
           </ThemedText>
         </View>
 
-        <View style={styles.row}>
-          <ThemedText style={styles.muted}>Rewards</ThemedText>
-          <ThemedText style={[styles.value, styles.muted]}>Coming soon</ThemedText>
-        </View>
       </ThemedView>
 
       {/* SKR card */}
@@ -236,25 +234,25 @@ export default function PortfolioScreen() {
         </View>
 
         <View style={styles.row}>
-          <ThemedText style={styles.muted}>Staked</ThemedText>
-          <ThemedText style={styles.value}>
-            {skrStaked == null ? (
-              <ThemedText style={styles.muted}>Coming soon</ThemedText>
-            ) : (
-              `${skrStaked.toLocaleString()} SKR`
-            )}
-          </ThemedText>
+          {skrStaked != null ? (
+            <View style={styles.row}>
+              <ThemedText style={styles.muted}>Staked</ThemedText>
+              <ThemedText style={styles.value}>
+                {`${skrStaked.toLocaleString()} SKR`}
+              </ThemedText>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.row}>
-          <ThemedText style={styles.muted}>Rewards earned</ThemedText>
-          <ThemedText style={styles.value}>
-            {skrRewards == null ? (
-              <ThemedText style={styles.muted}>Coming soon</ThemedText>
-            ) : (
-              `+ ${skrRewards.toLocaleString()} SKR`
-            )}
-          </ThemedText>
+         {skrRewards != null ? (
+            <View style={styles.row}>
+              <ThemedText style={styles.muted}>Rewards earned</ThemedText>
+              <ThemedText style={styles.value}>
+                {`+ ${skrRewards.toLocaleString()} SKR`}
+              </ThemedText>
+            </View>
+          ) : null}
         </View>
       </ThemedView>
     </ScrollView>
