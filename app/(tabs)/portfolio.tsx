@@ -69,6 +69,7 @@ export default function PortfolioScreen() {
       setSkr(skrPos.balance);
       setSkrStaked(skrPos.staked);
       setSkrRewards(skrPos.rewardsEarned);
+
     } catch (e: any) {
       const msg = e?.message ?? String(e);
       if (msg.includes("429") || msg.toLowerCase().includes("too many requests")) {
@@ -108,6 +109,21 @@ export default function PortfolioScreen() {
 
   if (!pubkey) return <Redirect href="/welcome" />;
 
+  // --- Insights (derived, free, no extra APIs) ---
+  const solBalance = sol ?? 0;
+  const solStaked = stakedSol ?? 0;
+  const totalSol = solBalance + solStaked;
+
+  const stakedPct = totalSol > 0 ? solStaked / totalSol : 0;
+
+  // Estimates only (keep it clearly labeled)
+  const DEFAULT_SOL_APY = 0.07; // 7% est
+  const EPOCH_DAYS_EST = 2; // ~2 days; varies
+  const epochsPerYearEst = 365 / EPOCH_DAYS_EST;
+  const estSolPerEpoch = solStaked * (DEFAULT_SOL_APY / epochsPerYearEst);
+
+  const showIdleWarning = solBalance >= 0.01;
+
   return (
     <ScrollView
       contentContainerStyle={styles.container}
@@ -121,6 +137,37 @@ export default function PortfolioScreen() {
       {err ? (
         <ThemedText style={[styles.muted, { color: "#ff8a8a" }]}>{err}</ThemedText>
       ) : null}
+
+      {/* Insights */}
+      <ThemedView style={styles.card}>
+        <ThemedText type="subtitle">Insights</ThemedText>
+
+        <View style={styles.row}>
+          <ThemedText style={styles.muted}>Staked %</ThemedText>
+          <ThemedText style={styles.value}>
+            {totalSol > 0 ? `${(stakedPct * 100).toFixed(0)}%` : "—"}
+          </ThemedText>
+        </View>
+
+        <View style={styles.row}>
+          <ThemedText style={styles.muted}>Est. SOL / epoch</ThemedText>
+          <ThemedText style={styles.value}>
+            {stakedSol == null ? "…" : `${estSolPerEpoch.toFixed(6)} SOL`}
+          </ThemedText>
+        </View>
+
+        {showIdleWarning ? (
+          <ThemedText style={[styles.muted, { color: "#ffd28a" }]}>
+            ⚠️ You have {solBalance.toFixed(4)} SOL idle (unstaked).
+          </ThemedText>
+        ) : (
+          <ThemedText style={styles.muted}>✅ Little/no idle SOL</ThemedText>
+        )}
+
+        <ThemedText style={styles.muted}>
+          Estimates only (APY & epoch length vary).
+        </ThemedText>
+      </ThemedView>
 
       {/* SOL card */}
       <ThemedView style={styles.card}>
@@ -150,7 +197,6 @@ export default function PortfolioScreen() {
       <ThemedView style={styles.card}>
         <View style={styles.cardHeader}>
           <ThemedText type="subtitle">SKR</ThemedText>
-
           <Pressable onPress={openSkrStake} style={styles.linkBtn} hitSlop={10}>
             <ThemedText style={styles.linkText}>Open staking</ThemedText>
           </Pressable>
