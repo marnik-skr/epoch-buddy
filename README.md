@@ -1,50 +1,90 @@
-# Welcome to your Expo app 👋
+# Epoch Buddy
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**Epoch Buddy** is a lightweight Solana companion app that helps you understand the current epoch at a glance.
 
-## Get started
+Track how far we are into the epoch, estimate when the next one starts, and optionally get notified before it ends.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## Features
 
-2. Start the app
+- Live epoch countdown
+- Progress bar based on slot index
+- Optional notifications
+  - 1 hour before epoch end
+  - At epoch end
+- Wallet-safe
+  - Read-only
+  - No funds moved
+  - Signature only (when required)
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## Screens
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- Welcome – connect your wallet
+- Epoch – current epoch, ETA, slot progress
+- Portfolio – staking-related insights (read-only)
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+---
 
-## Get a fresh project
+## Tech Stack
 
-When you're ready, run:
+- Expo / React Native
+- TypeScript
+- expo-router
+- Solana RPC
+- react-native-svg
+- expo-notifications
+
+SVG support is enabled via `react-native-svg-transformer`.
+
+---
+
+## Getting Started (Local Dev)
 
 ```bash
-npm run reset-project
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Run on:
+- Android device or emulator
+- iOS simulator
+- Expo Go (limited feature support)
 
-## Learn more
+---
 
-To learn more about developing your project with Expo, look at the following resources:
+## Notifications
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Notifications are opt-in and only scheduled after explicit user interaction.
 
-## Join the community
+If notification permissions are denied, the app continues to function normally without alerts.
 
-Join our community of developers creating universal apps.
+---
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Development Notes
+
+- File-based routing via expo-router
+- SVGs are imported as React components
+- Notification scheduling is debounced to avoid unnecessary RPC calls
+- Designed with dark mode as the default (Solana mobile friendly)
+
+---
+
+## Security & Privacy
+
+- No private keys are stored
+- Wallet addresses are stored locally only
+- No analytics or tracking
+- No background network activity beyond Solana RPC requests
+
+---
+
+## License
+
+MIT
+
+---
+
+Built for the Solana ecosystem.
