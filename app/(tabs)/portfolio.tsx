@@ -35,7 +35,7 @@ async function withBackoff<T>(fn: () => Promise<T>, tries = 2) {
       delay *= 2;
     }
   }
-  // never reached
+  
   return await fn();
 }
 
@@ -44,25 +44,22 @@ export default function PortfolioScreen() {
   const [ready, setReady] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // SOL
+
   const [sol, setSol] = useState<number | null>(null);
   const [stakedSol, setStakedSol] = useState<number | null>(null);
 
-  // SKR
+
   const [skr, setSkr] = useState<number | null>(null);
   const [skrStaked, setSkrStaked] = useState<number | null>(null);
   const [skrRewards, setSkrRewards] = useState<number | null>(null);
 
   const [err, setErr] = useState<string | null>(null);
 
-  // prevent overlapping calls
   const inFlightRef = useRef(false);
 
-  // cooldown to reduce 429s on public RPC
   const lastFetchMsRef = useRef(0);
   const COOLDOWN_MS = 15_000;
 
-  // on-focus soft refresh threshold
   const SOFT_REFRESH_MS = 30_000;
 
   const refresh = useCallback(async (force = false) => {
@@ -82,7 +79,6 @@ export default function PortfolioScreen() {
       setPubkey(k);
       if (!k) return;
 
-      // ✅ Serial + backoff to avoid RPC bursts
       const solLamports = await withBackoff(() => fetchSolBalanceLamports(k), 2);
       setSol(solLamports / 1e9);
 
@@ -110,7 +106,7 @@ export default function PortfolioScreen() {
   useFocusEffect(
     useCallback(() => {
       const now = Date.now();
-      // ✅ only refresh on focus if our data is “old enough”
+      
       if (now - lastFetchMsRef.current > SOFT_REFRESH_MS) {
         refresh(false);
       }
@@ -142,7 +138,6 @@ export default function PortfolioScreen() {
   const totalSol = solBalance + solStaked;
   const stakedPct = totalSol > 0 ? solStaked / totalSol : 0;
 
-  // Estimates only
   const DEFAULT_SOL_APY = 0.07; // 7% est
   const EPOCH_DAYS_EST = 2; // ~2 days; varies
   const epochsPerYearEst = 365 / EPOCH_DAYS_EST;
@@ -197,7 +192,6 @@ export default function PortfolioScreen() {
         </ThemedText>
       </ThemedView>
 
-      {/* SOL card */}
       <ThemedView style={styles.card}>
         <ThemedText type="subtitle">SOL</ThemedText>
         
@@ -217,7 +211,6 @@ export default function PortfolioScreen() {
 
       </ThemedView>
 
-      {/* SKR card */}
       <ThemedView style={styles.card}>
         <View style={styles.cardHeader}>
           <ThemedText type="subtitle">SKR</ThemedText>

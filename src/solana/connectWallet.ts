@@ -9,7 +9,6 @@ function isLikelyBase58(s: string) {
 }
 
 function isLikelyBase64(s: string) {
-  // base64 often has + / or = padding (but not always)
   return /^[A-Za-z0-9+/]+={0,2}$/.test(s) && s.length % 4 === 0;
 }
 
@@ -25,17 +24,14 @@ function toPubkeyBase58(addr: unknown): string {
     return bs58.encode(Uint8Array.from(addr));
   }
 
-  // Buffer-like object: { type: 'Buffer', data: number[] }
   if (addr && typeof addr === "object" && "data" in (addr as any)) {
     const data = (addr as any).data;
     if (Array.isArray(data)) return bs58.encode(Uint8Array.from(data));
   }
 
-  // string: base58 OR base64
   if (typeof addr === "string") {
     if (isLikelyBase58(addr)) return addr;
 
-    // try base64 decode -> base58
     try {
       const bytes = Uint8Array.from(Buffer.from(addr, "base64"));
       return bs58.encode(bytes);

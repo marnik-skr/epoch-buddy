@@ -14,7 +14,6 @@ export function useEpochCountdown(
 
   const [refreshTick, setRefreshTick] = useState(0);
 
-  // ✅ exposed manual refresh
   const refresh = useCallback(() => {
     setRefreshTick((v) => v + 1);
   }, []);

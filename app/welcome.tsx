@@ -18,13 +18,14 @@ import { loadPubkey, savePubkey } from "../src/solana/session";
 
 import Constants from "expo-constants";
 
+import Logo from "../assets/brand/logo.svg";
+
 export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
   const [busy, setBusy] = useState(false);
 
-  // animate only when we actually show Welcome
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(12)).current;
 
@@ -34,7 +35,6 @@ export default function WelcomeScreen() {
     (async () => {
       const k = await loadPubkey();
 
-      // already connected -> skip welcome entirely
       if (k) {
         router.replace("/(tabs)");
         return;
@@ -42,7 +42,6 @@ export default function WelcomeScreen() {
 
       if (!alive) return;
 
-      // only animate when we show this screen
       Animated.parallel([
         Animated.timing(fade, {
           toValue: 1,
@@ -89,15 +88,17 @@ export default function WelcomeScreen() {
               { opacity: fade, transform: [{ translateY: slide }] },
             ]}
           >
+            <Logo width={160} height={160} style={styles.logo} />
+
             <ThemedText type="title" style={styles.title}>
-              Welcome to Epoch Buddy
+              Epoch Buddy
             </ThemedText>
 
             <ThemedText style={styles.subtitle}>
               Understand your Solana epoch at a glance.
             </ThemedText>
 
-            <Pressable
+            <Pressable hitSlop={10}
               disabled={busy}
               style={({ pressed }) => [
                 styles.button,
@@ -176,8 +177,20 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.08)",
   },
 
-  title: { marginBottom: 4 },
-  subtitle: { opacity: 0.75, lineHeight: 20 },
+  title: {
+    alignSelf: "center", 
+    marginBottom: 6,
+    fontSize: 28,
+    lineHeight: 34,
+    letterSpacing: -0.3,
+  },
+
+  subtitle: {
+    alignSelf: "center", 
+    opacity: 0.7,
+    fontSize: 15,
+    lineHeight: 21,
+  },
 
   button: {
     marginTop: 10,
@@ -213,9 +226,29 @@ const styles = StyleSheet.create({
   version: {
     marginTop: 12,
     fontSize: 11,
-    opacity: 0.35,
+    opacity: 0.25,
     textAlign: "center",
     fontFamily: "monospace",
+  },
+
+  logo: {
+    alignSelf: "center", 
+    marginBottom: 6,
+    opacity: 0.92,
+  },
+
+  signatureNote: {
+    marginTop: 6,
+    opacity: 0.6,
+    fontSize: 12,
+    maxWidth: 260,
+  },
+
+  hint: {
+    marginTop: 6,
+    opacity: 0.55,
+    fontSize: 12,
+    maxWidth: 260,
   },
 
 });

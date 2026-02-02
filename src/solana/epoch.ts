@@ -14,7 +14,6 @@ export async function fetchEpochStatus(conn: Connection): Promise<EpochStatus> {
     conn.getRecentPerformanceSamples(3),
   ]);
 
-  // Average seconds per slot from recent samples
   let secsPerSlot = 0.4; // fallback
   if (samples?.length) {
     const totalSlots = samples.reduce((sum, s) => sum + (s.numSlots ?? 0), 0);

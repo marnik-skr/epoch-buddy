@@ -34,12 +34,10 @@ export async function scheduleEpochNotifications(params: {
 }) {
   const { etaSeconds, epoch, notifyAtOneHour, notifyAtEnd } = params;
 
-  // idempotent: always reset what WE own
   await clearEpochNotifications();
 
   const ids: string[] = [];
 
-  // 1h left
   if (notifyAtOneHour && etaSeconds > 3600) {
     const seconds = Math.max(1, Math.floor(etaSeconds - 3600));
     const id = await Notifications.scheduleNotificationAsync({
@@ -56,7 +54,6 @@ export async function scheduleEpochNotifications(params: {
     ids.push(id);
   }
 
-  // epoch end
   if (notifyAtEnd && etaSeconds > 5) {
     const seconds = Math.max(1, Math.floor(etaSeconds));
     const id = await Notifications.scheduleNotificationAsync({
@@ -77,7 +74,6 @@ export async function scheduleEpochNotifications(params: {
   return ids;
 }
 
-// (optional) now mostly only useful for debugging
 export async function getScheduledEpochNotificationCount() {
   const ids = await getIds();
   return ids.length;
