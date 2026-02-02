@@ -178,7 +178,7 @@ export default function PortfolioScreen() {
         </View>
 
         <View style={styles.row}>
-          <ThemedText style={styles.muted}>Est. SOL / epoch</ThemedText>
+          <ThemedText style={styles.muted}>Est. rewards / epoch</ThemedText>
           <ThemedText style={styles.value}>
             {stakedSol == null ? "…" : `${estSolPerEpoch.toFixed(6)} SOL`}
           </ThemedText>
@@ -186,7 +186,7 @@ export default function PortfolioScreen() {
 
         {showIdleWarning ? (
           <ThemedText style={[styles.muted, { color: "#ffd28a" }]}>
-            ⚠️ You have ~{stakeableIdleSol.toFixed(4)} SOL safely stakeable.
+            ⚠️ You have ~{stakeableIdleSol.toFixed(4)} SOL idle (not earning).
           </ThemedText>
         ) : (
           <ThemedText style={styles.muted}>✅ Little/no idle SOL</ThemedText>
@@ -200,9 +200,9 @@ export default function PortfolioScreen() {
       {/* SOL card */}
       <ThemedView style={styles.card}>
         <ThemedText type="subtitle">SOL</ThemedText>
-
+        
         <View style={styles.row}>
-          <ThemedText style={styles.muted}>Balance</ThemedText>
+          <ThemedText style={styles.muted}>Unstaked</ThemedText>
           <ThemedText style={styles.value}>
             {sol == null ? "…" : `${sol.toFixed(4)} SOL`}
           </ThemedText>
@@ -227,7 +227,7 @@ export default function PortfolioScreen() {
         </View>
 
         <View style={styles.row}>
-          <ThemedText style={styles.muted}>Balance</ThemedText>
+          <ThemedText style={styles.muted}>Unstaked</ThemedText>
           <ThemedText style={styles.value}>
             {skr == null ? "…" : `${skr.toLocaleString()} SKR`}
           </ThemedText>

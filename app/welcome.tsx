@@ -94,7 +94,7 @@ export default function WelcomeScreen() {
             </ThemedText>
 
             <ThemedText style={styles.subtitle}>
-              Track Solana epoch progress, set reminders, and switch wallets fast.
+              Understand your Solana epoch at a glance.
             </ThemedText>
 
             <Pressable
