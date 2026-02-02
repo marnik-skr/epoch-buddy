@@ -30,8 +30,6 @@ import {
   scheduleEpochNotifications,
 } from "../../src/notifications/epochNotifications";
 
-import { nukeAllEpochNotifications } from "../../src/notifications/epochNotifications";
-
 const NOTIF_1H_KEY = "epochbuddy_notify_1h";
 const NOTIF_END_KEY = "epochbuddy_notify_end";
 
@@ -48,18 +46,14 @@ export default function HomeScreen() {
   const { status, eta, error, secondsSinceUpdate, refresh: refreshEpoch } =
     useEpochCountdown();
 
-  // notifications toggles
   const [notify1h, setNotify1h] = useState(false);
   const [notifyEnd, setNotifyEnd] = useState(false);
   const [notifPerm, setNotifPerm] = useState<PermStatus>("undetermined");
 
-  // pull-to-refresh
   const [refreshing, setRefreshing] = useState(false);
 
-  // debounce (prevents rapid double-schedules)
   const reschedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // progress + next epoch time
   const progress =
     status && status.slotsInEpoch > 0 ? status.slotIndex / status.slotsInEpoch : 0;
   const progressPct = Math.max(0, Math.min(1, progress));
@@ -75,7 +69,24 @@ export default function HomeScreen() {
     return perm.status as PermStatus;
   }, []);
 
-  // load wallet on focus
+  const ensureNotifPerm = async () => {
+  if (notifPerm === "granted") return true;
+
+  const res = await Notifications.requestPermissionsAsync();
+    setNotifPerm(res.status as PermStatus);
+
+    if (res.status !== "granted") {
+      Alert.alert(
+        "Notifications disabled",
+        "Enable notifications in system settings to receive alerts."
+      );
+      return false;
+    }
+
+    return true;
+  };
+
+
   useFocusEffect(
     useCallback(() => {
       let alive = true;
@@ -91,7 +102,6 @@ export default function HomeScreen() {
     }, [])
   );
 
-  // load notification prefs once
   useEffect(() => {
     (async () => {
       const a = await SecureStore.getItemAsync(NOTIF_1H_KEY);
@@ -102,7 +112,6 @@ export default function HomeScreen() {
     })();
   }, [refreshNotifPerm]);
 
-  // keep permission status fresh when coming back to screen
   useFocusEffect(
     useCallback(() => {
       refreshNotifPerm();
@@ -117,7 +126,6 @@ export default function HomeScreen() {
       await SecureStore.setItemAsync(NOTIF_1H_KEY, next1h ? "1" : "0");
       await SecureStore.setItemAsync(NOTIF_END_KEY, nextEnd ? "1" : "0");
 
-      // permission gate
       const p = await refreshNotifPerm();
       if (p !== "granted") {
         // keep things tidy
@@ -125,10 +133,11 @@ export default function HomeScreen() {
         return;
       }
 
-      // nothing enabled -> done
-      if (!next1h && !nextEnd) return;
+      if (!next1h && !nextEnd) {
+        await clearEpochNotifications();
+        return;
+      }
 
-      // schedule fresh set
       const ids = await scheduleEpochNotifications({
         etaSeconds: eta,
         epoch: status.epoch,
@@ -151,7 +160,6 @@ export default function HomeScreen() {
     [rescheduleEpochNotifs]
   );
 
-  // AUTO reschedule: only right after we have a fresh update AND epoch/toggles matter
   useEffect(() => {
     if (!status) return;
     if (secondsSinceUpdate !== 0) return;
@@ -173,7 +181,6 @@ export default function HomeScreen() {
       await refreshEpoch?.();
       await Haptics.selectionAsync();
 
-      // reschedule after refresh based on current toggles
       scheduleDebounced("pull-to-refresh", notify1h, notifyEnd);
     } finally {
       setRefreshing(false);
@@ -192,7 +199,6 @@ export default function HomeScreen() {
     >
       <ThemedText type="title">Epoch</ThemedText>
 
-      {/* Wallet */}
       <ThemedText type="subtitle">Connected wallet</ThemedText>
       <Pressable
         onPress={async () => {
@@ -211,10 +217,9 @@ export default function HomeScreen() {
 
       <ThemedText style={styles.chip}>Connected</ThemedText>
 
-      {/* Epoch countdown */}
       <ThemedView style={styles.card}>
         <View style={styles.cardHeader}>
-          <ThemedText type="subtitle">Epoch status</ThemedText>
+          <ThemedText type="subtitle">Current Epoch</ThemedText>
           <Pressable
             onPress={() => setShowEpochInfo(true)}
             hitSlop={10}
@@ -245,7 +250,7 @@ export default function HomeScreen() {
               {status.slotsInEpoch}
             </ThemedText>
 
-            <ThemedText style={styles.muted}>
+            <ThemedText style={styles.slot}>
               ~{status.secsPerSlot.toFixed(3)}s/slot
             </ThemedText>
           </>
@@ -258,7 +263,6 @@ export default function HomeScreen() {
         )}
       </ThemedView>
 
-      {/* Epoch info modal */}
       <Modal
         visible={showEpochInfo}
         transparent
@@ -291,7 +295,78 @@ export default function HomeScreen() {
         </Pressable>
       </Modal>
 
-      {/* Disconnect */}
+      <ThemedView style={styles.card}>
+        <ThemedText type="subtitle">Notifications</ThemedText>
+
+      <View style={styles.row}>
+        <ThemedText>1 hour left</ThemedText>
+        <Switch
+          value={notify1h}
+          onValueChange={async (v) => {
+            if (v) {
+              const ok = await ensureNotifPerm();
+              if (!ok) {
+                setNotify1h(false);
+                return;
+              }
+            }
+            const next1h = v;
+            const nextEnd = notifyEnd;
+            setNotify1h(next1h);
+            scheduleDebounced("toggle-1h", next1h, nextEnd);
+          }}
+        />
+      </View>
+
+      <View style={styles.row}>
+        <ThemedText>Epoch end</ThemedText>
+        <Switch
+          value={notifyEnd}
+          onValueChange={async (v) => {
+            if (v) {
+              const ok = await ensureNotifPerm();
+              if (!ok) {
+                setNotifyEnd(false);
+                return;
+              }
+            }
+            const nextEnd = v;
+            const next1h = notify1h;
+            setNotifyEnd(nextEnd);
+            scheduleDebounced("toggle-end", next1h, nextEnd);
+          }}
+        />
+      </View>
+
+
+        {notifPerm === "denied" && (
+          <ThemedText style={styles.muted}>
+            Enable notifications in system settings to receive alerts.
+          </ThemedText>
+        )}
+
+      </ThemedView>
+
+      <Pressable
+        style={styles.switchWallet}
+        onPress={async () => {
+          try {
+            await disconnectWallet();
+            await clearPubkey();
+            const next = await connectWallet();
+            await savePubkey(next);
+            setPubkey(next);
+            await Haptics.notificationAsync(
+              Haptics.NotificationFeedbackType.Success
+            );
+          } catch (e: any) {
+            Alert.alert("Switch wallet failed", e?.message ?? String(e));
+          }
+        }}
+      >
+        <ThemedText type="defaultSemiBold">Switch wallet</ThemedText>
+      </Pressable>
+
       <Pressable
         style={styles.disconnect}
         onPress={async () => {
@@ -309,101 +384,6 @@ export default function HomeScreen() {
       >
         <ThemedText type="defaultSemiBold">Disconnect</ThemedText>
       </Pressable>
-
-      {/* Switch Wallet */}
-      <Pressable
-        style={styles.switchWallet}
-        onPress={async () => {
-          try {
-            const next = await connectWallet();
-            await disconnectWallet();
-            await clearPubkey();
-            await savePubkey(next);
-            setPubkey(next);
-            await Haptics.notificationAsync(
-              Haptics.NotificationFeedbackType.Success
-            );
-          } catch (e: any) {
-            Alert.alert("Switch wallet failed", e?.message ?? String(e));
-          }
-        }}
-      >
-        <ThemedText type="defaultSemiBold">Switch wallet</ThemedText>
-      </Pressable>
-
-      {/* Notifications Card (minimal) */}
-      <ThemedView style={styles.card}>
-        <ThemedText type="subtitle">Notifications</ThemedText>
-
-        <View style={styles.row}>
-          <ThemedText>1 hour left</ThemedText>
-          <Switch
-            value={notify1h}
-            disabled={notifPerm !== "granted"}
-            onValueChange={(v) => {
-              const next1h = v;
-              const nextEnd = notifyEnd;
-              setNotify1h(next1h);
-              scheduleDebounced("toggle-1h", next1h, nextEnd);
-            }}
-          />
-        </View>
-
-        <View style={styles.row}>
-          <ThemedText>Epoch end</ThemedText>
-          <Switch
-            value={notifyEnd}
-            disabled={notifPerm !== "granted"}
-            onValueChange={(v) => {
-              const nextEnd = v;
-              const next1h = notify1h;
-              setNotifyEnd(nextEnd);
-              scheduleDebounced("toggle-end", next1h, nextEnd);
-            }}
-          />
-        </View>
-
-        {notifPerm !== "granted" && (
-          <Pressable
-            style={styles.notifBtn}
-            onPress={async () => {
-              try {
-                const res = await Notifications.requestPermissionsAsync();
-                setNotifPerm(res.status as PermStatus);
-
-                Alert.alert(
-                  res.status === "granted" ? "Enabled ✅" : "Permission needed",
-                  res.status === "granted"
-                    ? "You can now schedule epoch alerts."
-                    : "Enable notifications in system settings to receive alerts."
-                );
-
-                // if they just enabled permission and toggles are on, schedule once
-                if (res.status === "granted") {
-                  scheduleDebounced("perm-granted", notify1h, notifyEnd);
-                }
-              } catch (e: any) {
-                Alert.alert("Notifications", e?.message ?? String(e));
-              }
-            }}
-          >
-            <ThemedText type="defaultSemiBold">Enable notifications</ThemedText>
-          </Pressable>
-        )}
-
-        {__DEV__ && (
-          <Pressable
-            style={styles.notifBtn}
-            onPress={async () => {
-              await nukeAllEpochNotifications();
-              Alert.alert("Done ✅", "Cleared all scheduled notifications (dev).");
-            }}
-          >
-            <ThemedText type="defaultSemiBold">Dev: Nuke notifications</ThemedText>
-          </Pressable>
-        )}
-
-      </ThemedView>
     </ScrollView>
   );
 }
@@ -502,11 +482,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 6,
   },
-  notifBtn: {
-    marginTop: 10,
-    padding: 12,
-    borderRadius: 12,
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.12)",
-  },
+  slot: {
+    fontSize: 11,
+    opacity: 0.55,
+    marginTop: 2,
+    letterSpacing: 0.2,
+  }
 });
