@@ -1,18 +1,16 @@
 import { fetchSkrBalance } from "./skrBalance";
 
 export type SkrPosition = {
-  balance: number;          // liquid SKR in wallet
-  staked: number | null;    // staked SKR (TODO: wire source)
-  rewardsEarned: number | null; // lifetime rewards (TODO: wire source)
+  balance: number;
+  staked: number | null;
+  rewardsEarned: number | null;
 };
 
 export async function fetchSkrPosition(ownerPubkeyBase58: string): Promise<SkrPosition> {
   const balance = await fetchSkrBalance(ownerPubkeyBase58);
-
-  // TODO: wire these from Solana Mobile Guardian staking source
-  // (program account / indexer / API)
-  const staked: number | null = null;
-  const rewardsEarned: number | null = null;
-
-  return { balance, staked, rewardsEarned };
+  return {
+    balance,
+    staked: null,        // TODO: wire once we find on-chain source
+    rewardsEarned: null, // TODO: wire once we find on-chain source
+  };
 }
