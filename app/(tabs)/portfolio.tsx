@@ -19,6 +19,26 @@ import { fetchSkrPosition } from "../../src/portfolio/skrPosition";
 
 const SKR_STAKE_URL = "https://stake.solanamobile.com";
 
+function is429(e: any) {
+  const msg = e?.message ?? String(e);
+  return msg.includes("429") || msg.toLowerCase().includes("too many requests");
+}
+
+async function withBackoff<T>(fn: () => Promise<T>, tries = 2) {
+  let delay = 650;
+  for (let i = 0; i <= tries; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (!is429(e) || i === tries) throw e;
+      await new Promise((r) => setTimeout(r, delay));
+      delay *= 2;
+    }
+  }
+  // never reached
+  return await fn();
+}
+
 export default function PortfolioScreen() {
   const [pubkey, setPubkey] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -37,12 +57,17 @@ export default function PortfolioScreen() {
 
   // prevent overlapping calls
   const inFlightRef = useRef(false);
+
   // cooldown to reduce 429s on public RPC
   const lastFetchMsRef = useRef(0);
-  const COOLDOWN_MS = 6_000;
+  const COOLDOWN_MS = 15_000;
+
+  // on-focus soft refresh threshold
+  const SOFT_REFRESH_MS = 30_000;
 
   const refresh = useCallback(async (force = false) => {
     if (inFlightRef.current) return;
+
     const now = Date.now();
     if (!force && now - lastFetchMsRef.current < COOLDOWN_MS) return;
 
@@ -57,19 +82,17 @@ export default function PortfolioScreen() {
       setPubkey(k);
       if (!k) return;
 
-      const [solLamports, stakedLamports, skrPos] = await Promise.all([
-        fetchSolBalanceLamports(k),
-        fetchNativeStakedSol(k),
-        fetchSkrPosition(k),
-      ]);
-
+      // ✅ Serial + backoff to avoid RPC bursts
+      const solLamports = await withBackoff(() => fetchSolBalanceLamports(k), 2);
       setSol(solLamports / 1e9);
+
+      const stakedLamports = await withBackoff(() => fetchNativeStakedSol(k), 2);
       setStakedSol(stakedLamports / 1e9);
 
+      const skrPos = await withBackoff(() => fetchSkrPosition(k), 1);
       setSkr(skrPos.balance);
       setSkrStaked(skrPos.staked);
       setSkrRewards(skrPos.rewardsEarned);
-
     } catch (e: any) {
       const msg = e?.message ?? String(e);
       if (msg.includes("429") || msg.toLowerCase().includes("too many requests")) {
@@ -86,7 +109,11 @@ export default function PortfolioScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      refresh(false);
+      const now = Date.now();
+      // ✅ only refresh on focus if our data is “old enough”
+      if (now - lastFetchMsRef.current > SOFT_REFRESH_MS) {
+        refresh(false);
+      }
     }, [refresh])
   );
 
@@ -113,10 +140,9 @@ export default function PortfolioScreen() {
   const solBalance = sol ?? 0;
   const solStaked = stakedSol ?? 0;
   const totalSol = solBalance + solStaked;
-
   const stakedPct = totalSol > 0 ? solStaked / totalSol : 0;
 
-  // Estimates only (keep it clearly labeled)
+  // Estimates only
   const DEFAULT_SOL_APY = 0.07; // 7% est
   const EPOCH_DAYS_EST = 2; // ~2 days; varies
   const epochsPerYearEst = 365 / EPOCH_DAYS_EST;
