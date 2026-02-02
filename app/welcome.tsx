@@ -16,6 +16,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { connectWallet } from "../src/solana/connectWallet";
 import { loadPubkey, savePubkey } from "../src/solana/session";
 
+import Constants from "expo-constants";
+
 export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -32,7 +34,7 @@ export default function WelcomeScreen() {
     (async () => {
       const k = await loadPubkey();
 
-      // ✅ already connected -> skip welcome entirely
+      // already connected -> skip welcome entirely
       if (k) {
         router.replace("/(tabs)");
         return;
@@ -40,7 +42,7 @@ export default function WelcomeScreen() {
 
       if (!alive) return;
 
-      // ✅ only animate when we show this screen
+      // only animate when we show this screen
       Animated.parallel([
         Animated.timing(fade, {
           toValue: 1,
@@ -144,6 +146,11 @@ export default function WelcomeScreen() {
             <ThemedText style={styles.hint}>
               Tip: pull down on the Epoch screen to refresh.
             </ThemedText>
+
+            <ThemedText style={styles.version}>
+              v{Constants.expoConfig?.version ?? "0.0.0"}
+            </ThemedText>
+
           </Animated.View>
         </View>
       </LinearGradient>
@@ -202,4 +209,13 @@ const styles = StyleSheet.create({
     right: -120,
     backgroundColor: "rgba(120,160,255,0.08)",
   },
+
+  version: {
+    marginTop: 12,
+    fontSize: 11,
+    opacity: 0.35,
+    textAlign: "center",
+    fontFamily: "monospace",
+  },
+
 });
