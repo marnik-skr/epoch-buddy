@@ -29,7 +29,6 @@ export default {
       m: [],
     };
 
-    // POST avoids very long URLs
     const body = `payload=${encodeURIComponent(JSON.stringify(payload))}`;
 
     const r = await fetch(base, {
@@ -40,21 +39,22 @@ export default {
         "Content-Type": "application/x-www-form-urlencoded",
         Referer: "https://stake.solanamobile.com/",
         Origin: "https://stake.solanamobile.com",
-        // try to avoid brotli / weird encodings
-        "Accept-Encoding": "gzip, deflate, identity",
       },
-      body,
       redirect: "follow",
       cf: { cacheTtl: 0, cacheEverything: false },
     });
 
-    const text = await r.text();
+    // ✅ Read raw bytes then decode (more reliable than r.text())
+    const ab = await r.arrayBuffer();
+    const bytes = new Uint8Array(ab);
+    const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
 
-    // If upstream is empty, return a JSON error so the app can see it
+    // If upstream is empty/unreadable, return a JSON error we can see in app logs
     if (!text || text.trim().length === 0) {
       const err = {
         ok: false,
         upstreamStatus: r.status,
+        upstreamByteLength: bytes.byteLength,
         upstreamHeaders: Object.fromEntries(r.headers.entries()),
       };
       return new Response(JSON.stringify(err, null, 2), {
