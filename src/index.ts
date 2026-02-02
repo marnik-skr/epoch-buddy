@@ -29,25 +29,49 @@ export default {
       m: [],
     };
 
-    const payloadEncoded = encodeURIComponent(JSON.stringify(payload));
-    const target = `${base}?payload=${payloadEncoded}`;
+    // POST avoids very long URLs
+    const body = `payload=${encodeURIComponent(JSON.stringify(payload))}`;
 
-    const r = await fetch(target, {
+    const r = await fetch(base, {
+      method: "POST",
       headers: {
         "User-Agent": "Mozilla/5.0",
         Accept: "application/json, text/plain, */*",
+        "Content-Type": "application/x-www-form-urlencoded",
         Referer: "https://stake.solanamobile.com/",
         Origin: "https://stake.solanamobile.com",
+        // try to avoid brotli / weird encodings
+        "Accept-Encoding": "gzip, deflate, identity",
       },
+      body,
+      redirect: "follow",
+      cf: { cacheTtl: 0, cacheEverything: false },
     });
 
     const text = await r.text();
+
+    // If upstream is empty, return a JSON error so the app can see it
+    if (!text || text.trim().length === 0) {
+      const err = {
+        ok: false,
+        upstreamStatus: r.status,
+        upstreamHeaders: Object.fromEntries(r.headers.entries()),
+      };
+      return new Response(JSON.stringify(err, null, 2), {
+        status: 502,
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "access-control-allow-origin": "*",
+        },
+      });
+    }
+
     return new Response(text, {
       status: r.status,
       headers: {
         "content-type": "application/json; charset=utf-8",
         "cache-control": "no-store",
-        // optional but nice if your app calls it directly
         "access-control-allow-origin": "*",
       },
     });
