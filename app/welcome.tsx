@@ -206,9 +206,6 @@ const styles = StyleSheet.create({
   btnInner: { flexDirection: "row", gap: 10, alignItems: "center" },
   btnText: { fontSize: 16 },
 
-  signatureNote: { marginTop: -2, opacity: 0.65, fontSize: 12 },
-  hint: { marginTop: 6, opacity: 0.6, fontSize: 12 },
-
   blob: {
     position: "absolute",
     width: 280,
