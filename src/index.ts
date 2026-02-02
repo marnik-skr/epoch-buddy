@@ -29,32 +29,35 @@ export default {
       m: [],
     };
 
-    const body = `payload=${encodeURIComponent(JSON.stringify(payload))}`;
+    // ✅ EXACT shape the browser used (GET with payload in query)
+    const payloadEncoded = encodeURIComponent(JSON.stringify(payload));
+    const target = `${base}?payload=${payloadEncoded}`;
 
-    const r = await fetch(base, {
-      method: "POST",
+    const r = await fetch(target, {
+      method: "GET",
       headers: {
         "User-Agent": "Mozilla/5.0",
         Accept: "application/json, text/plain, */*",
-        "Content-Type": "application/x-www-form-urlencoded",
         Referer: "https://stake.solanamobile.com/",
         Origin: "https://stake.solanamobile.com",
+        "Accept-Language": "en-US,en;q=0.9",
+
+        // these “browser-ish” headers can matter on some setups
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Dest": "empty",
       },
       redirect: "follow",
       cf: { cacheTtl: 0, cacheEverything: false },
     });
 
-    // ✅ Read raw bytes then decode (more reliable than r.text())
-    const ab = await r.arrayBuffer();
-    const bytes = new Uint8Array(ab);
-    const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+    const text = await r.text();
 
-    // If upstream is empty/unreadable, return a JSON error we can see in app logs
+    // If upstream is still empty, return JSON debug (so we can see exactly why)
     if (!text || text.trim().length === 0) {
       const err = {
         ok: false,
         upstreamStatus: r.status,
-        upstreamByteLength: bytes.byteLength,
         upstreamHeaders: Object.fromEntries(r.headers.entries()),
       };
       return new Response(JSON.stringify(err, null, 2), {
