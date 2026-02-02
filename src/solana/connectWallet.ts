@@ -8,10 +8,6 @@ function isLikelyBase58(s: string) {
   return /^[1-9A-HJ-NP-Za-km-z]+$/.test(s);
 }
 
-function isLikelyBase64(s: string) {
-  return /^[A-Za-z0-9+/]+={0,2}$/.test(s) && s.length % 4 === 0;
-}
-
 function toPubkeyBase58(addr: unknown): string {
   // Uint8Array
   if (addr instanceof Uint8Array) return bs58.encode(addr);
