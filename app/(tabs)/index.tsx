@@ -17,6 +17,7 @@ import {
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import * as SecureStore from "expo-secure-store";
+import * as Notifications from "expo-notifications";
 
 import { connectWallet } from "../../src/solana/connectWallet";
 import { disconnectWallet } from "../../src/solana/disconnectWallet";
@@ -24,16 +25,15 @@ import { clearPubkey, loadPubkey, savePubkey } from "../../src/solana/session";
 import { useEpochCountdown } from "../../src/hooks/useEpochCountdown";
 import { formatHMS } from "../../src/solana/epoch";
 import { shortAddress } from "../../src/ui/walletUi";
-
 import {
   clearEpochNotifications,
-  getScheduledEpochNotificationCount,
   scheduleEpochNotifications,
 } from "../../src/notifications/epochNotifications";
 
 const NOTIF_1H_KEY = "epochbuddy_notify_1h";
 const NOTIF_END_KEY = "epochbuddy_notify_end";
-const NOTIF_LAST_KEY = "epochbuddy_notif_last_scheduled_at";
+
+type PermStatus = "granted" | "denied" | "undetermined";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -46,16 +46,15 @@ export default function HomeScreen() {
   const { status, eta, error, secondsSinceUpdate, refresh: refreshEpoch } =
     useEpochCountdown();
 
-  // notifications prefs + status
+  // notifications toggles
   const [notify1h, setNotify1h] = useState(false);
   const [notifyEnd, setNotifyEnd] = useState(false);
-  const [scheduledCount, setScheduledCount] = useState<number>(0);
-  const [scheduledAgeSec, setScheduledAgeSec] = useState<number | null>(null);
+  const [notifPerm, setNotifPerm] = useState<PermStatus>("undetermined");
 
   // pull-to-refresh
   const [refreshing, setRefreshing] = useState(false);
 
-  // debounce timer ref (RN-safe typing)
+  // debounce (prevents rapid double-schedules)
   const reschedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // progress + next epoch time
@@ -63,74 +62,71 @@ export default function HomeScreen() {
     status && status.slotsInEpoch > 0 ? status.slotIndex / status.slotsInEpoch : 0;
   const progressPct = Math.max(0, Math.min(1, progress));
   const progressLabel = `${(progressPct * 100).toFixed(1)}%`;
-
   const nextEpochAt = new Date(Date.now() + eta * 1000).toLocaleTimeString(
     undefined,
     { hour: "2-digit", minute: "2-digit" }
   );
 
+  const refreshNotifPerm = useCallback(async () => {
+    const perm = await Notifications.getPermissionsAsync();
+    setNotifPerm(perm.status as PermStatus);
+    return perm.status as PermStatus;
+  }, []);
+
   // load wallet on focus
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-
       (async () => {
         const k = await loadPubkey();
         if (!alive) return;
         setPubkey(k);
         setReady(true);
       })();
-
       return () => {
         alive = false;
       };
     }, [])
   );
 
-  // load notification prefs + last scheduled info once
+  // load notification prefs once
   useEffect(() => {
     (async () => {
       const a = await SecureStore.getItemAsync(NOTIF_1H_KEY);
       const b = await SecureStore.getItemAsync(NOTIF_END_KEY);
       if (a != null) setNotify1h(a === "1");
       if (b != null) setNotifyEnd(b === "1");
-
-      const count = await getScheduledEpochNotificationCount();
-      setScheduledCount(count);
-
-      const last = await SecureStore.getItemAsync(NOTIF_LAST_KEY);
-      if (last) {
-        const ts = Number(last);
-        if (!Number.isNaN(ts)) {
-          setScheduledAgeSec(Math.max(0, Math.floor((Date.now() - ts) / 1000)));
-        }
-      }
+      await refreshNotifPerm();
     })();
-  }, []);
+  }, [refreshNotifPerm]);
 
-  // tick scheduled age label
-  useEffect(() => {
-    if (scheduledAgeSec == null) return;
-    const t = setInterval(() => {
-      setScheduledAgeSec((v) => (v == null ? null : v + 1));
-    }, 1000);
-    return () => clearInterval(t);
-  }, [scheduledAgeSec]);
+  // keep permission status fresh when coming back to screen
+  useFocusEffect(
+    useCallback(() => {
+      refreshNotifPerm();
+    }, [refreshNotifPerm])
+  );
 
   const rescheduleEpochNotifs = useCallback(
     async (reason: string, next1h: boolean, nextEnd: boolean) => {
       if (!status) return;
 
+      // persist toggles (so they survive reloads)
       await SecureStore.setItemAsync(NOTIF_1H_KEY, next1h ? "1" : "0");
       await SecureStore.setItemAsync(NOTIF_END_KEY, nextEnd ? "1" : "0");
 
-      if (!next1h && !nextEnd) {
+      // permission gate
+      const p = await refreshNotifPerm();
+      if (p !== "granted") {
+        // keep things tidy
         await clearEpochNotifications();
-        setScheduledCount(0);
-        setScheduledAgeSec(null);
         return;
       }
 
+      // nothing enabled -> done
+      if (!next1h && !nextEnd) return;
+
+      // schedule fresh set
       const ids = await scheduleEpochNotifications({
         etaSeconds: eta,
         epoch: status.epoch,
@@ -138,26 +134,32 @@ export default function HomeScreen() {
         notifyAtEnd: nextEnd,
       });
 
-      await SecureStore.setItemAsync(NOTIF_LAST_KEY, String(Date.now()));
-      setScheduledCount(ids.length);
-      setScheduledAgeSec(0);
+      if (__DEV__) console.log("NOTIFS rescheduled:", reason, ids.length);
     },
-    [status, eta]
+    [status, eta, refreshNotifPerm]
   );
 
+  const scheduleDebounced = useCallback(
+    (reason: string, next1h: boolean, nextEnd: boolean) => {
+      if (reschedTimerRef.current) clearTimeout(reschedTimerRef.current);
+      reschedTimerRef.current = setTimeout(() => {
+        rescheduleEpochNotifs(reason, next1h, nextEnd);
+      }, 250);
+    },
+    [rescheduleEpochNotifs]
+  );
 
-
-  // AUTO reschedule (debounced) when epoch/toggles change
+  // AUTO reschedule: only right after we have a fresh update AND epoch/toggles matter
   useEffect(() => {
     if (!status) return;
-    if (secondsSinceUpdate !== 0) return; // ✅ stops the 0→2→0 loop
+    if (secondsSinceUpdate !== 0) return;
 
-    const t = setTimeout(() => {
-      rescheduleEpochNotifs("epoch-refresh");
-    }, 600);
+    scheduleDebounced("epoch-refresh", notify1h, notifyEnd);
 
-    return () => clearTimeout(t);
-  }, [status?.epoch, secondsSinceUpdate, rescheduleEpochNotifs]);
+    return () => {
+      if (reschedTimerRef.current) clearTimeout(reschedTimerRef.current);
+    };
+  }, [status?.epoch, secondsSinceUpdate, notify1h, notifyEnd, scheduleDebounced, status]);
 
   const refreshAll = useCallback(async () => {
     try {
@@ -166,15 +168,15 @@ export default function HomeScreen() {
       const k = await loadPubkey();
       setPubkey(k);
 
-      refreshEpoch(); // manual epoch fetch (your hook exposes refresh)
+      await refreshEpoch?.();
       await Haptics.selectionAsync();
 
-      // schedule immediately after refresh (still safe b/c debounce)
-      setTimeout(() => rescheduleEpochNotifs("pull-to-refresh"), 0);
+      // reschedule after refresh based on current toggles
+      scheduleDebounced("pull-to-refresh", notify1h, notifyEnd);
     } finally {
       setRefreshing(false);
     }
-  }, [refreshEpoch, rescheduleEpochNotifs]);
+  }, [refreshEpoch, notify1h, notifyEnd, scheduleDebounced]);
 
   if (!ready) return null;
   if (!pubkey) return <Redirect href="/welcome" />;
@@ -223,7 +225,6 @@ export default function HomeScreen() {
         {status ? (
           <>
             <ThemedText style={styles.bigTimer}>{formatHMS(eta)}</ThemedText>
-
             <ThemedText style={styles.updatedText}>
               Updated {secondsSinceUpdate}s ago • Next epoch ~{nextEpochAt}
             </ThemedText>
@@ -307,18 +308,16 @@ export default function HomeScreen() {
         <ThemedText type="defaultSemiBold">Disconnect</ThemedText>
       </Pressable>
 
-      {/* Switch Wallet (safe-ish version: connect first) */}
+      {/* Switch Wallet */}
       <Pressable
         style={styles.switchWallet}
         onPress={async () => {
           try {
-            const next = await connectWallet(); // let user pick first
-            await disconnectWallet(); // then revoke old
+            const next = await connectWallet();
+            await disconnectWallet();
             await clearPubkey();
-
             await savePubkey(next);
             setPubkey(next);
-
             await Haptics.notificationAsync(
               Haptics.NotificationFeedbackType.Success
             );
@@ -330,29 +329,20 @@ export default function HomeScreen() {
         <ThemedText type="defaultSemiBold">Switch wallet</ThemedText>
       </Pressable>
 
-      {/* Notifications Card */}
+      {/* Notifications Card (minimal) */}
       <ThemedView style={styles.card}>
         <ThemedText type="subtitle">Notifications</ThemedText>
-
-        <ThemedText style={styles.muted}>
-          {scheduledCount > 0
-            ? `Scheduled ✅ (${scheduledCount})${
-                scheduledAgeSec != null ? ` • ${scheduledAgeSec}s ago` : ""
-              }`
-            : "Not scheduled"}
-        </ThemedText>
 
         <View style={styles.row}>
           <ThemedText>1 hour left</ThemedText>
           <Switch
             value={notify1h}
+            disabled={notifPerm !== "granted"}
             onValueChange={(v) => {
               const next1h = v;
               const nextEnd = notifyEnd;
               setNotify1h(next1h);
-              setTimeout(() => {
-                rescheduleEpochNotifs("toggle-1h", next1h, nextEnd);
-              }, 0);
+              scheduleDebounced("toggle-1h", next1h, nextEnd);
             }}
           />
         </View>
@@ -361,30 +351,43 @@ export default function HomeScreen() {
           <ThemedText>Epoch end</ThemedText>
           <Switch
             value={notifyEnd}
+            disabled={notifPerm !== "granted"}
             onValueChange={(v) => {
               const nextEnd = v;
               const next1h = notify1h;
               setNotifyEnd(nextEnd);
-              setTimeout(() => {
-                rescheduleEpochNotifs("toggle-end", next1h, nextEnd);
-              }, 0);
+              scheduleDebounced("toggle-end", next1h, nextEnd);
             }}
           />
         </View>
 
+        {notifPerm !== "granted" && (
+          <Pressable
+            style={styles.notifBtn}
+            onPress={async () => {
+              try {
+                const res = await Notifications.requestPermissionsAsync();
+                setNotifPerm(res.status as PermStatus);
 
+                Alert.alert(
+                  res.status === "granted" ? "Enabled ✅" : "Permission needed",
+                  res.status === "granted"
+                    ? "You can now schedule epoch alerts."
+                    : "Enable notifications in system settings to receive alerts."
+                );
 
-        <Pressable
-          style={styles.notifBtnSecondary}
-          onPress={async () => {
-            await clearEpochNotifications();
-            setScheduledCount(0);
-            setScheduledAgeSec(null);
-            Alert.alert("Cleared ✅", "All epoch notifications removed.");
-          }}
-        >
-          <ThemedText type="defaultSemiBold">Clear notifications</ThemedText>
-        </Pressable>
+                // if they just enabled permission and toggles are on, schedule once
+                if (res.status === "granted") {
+                  scheduleDebounced("perm-granted", notify1h, notifyEnd);
+                }
+              } catch (e: any) {
+                Alert.alert("Notifications", e?.message ?? String(e));
+              }
+            }}
+          >
+            <ThemedText type="defaultSemiBold">Enable notifications</ThemedText>
+          </Pressable>
+        )}
       </ThemedView>
     </ScrollView>
   );
@@ -397,11 +400,9 @@ const styles = StyleSheet.create({
     paddingTop: 70,
     gap: 12,
   },
-
   addrWrap: { marginTop: 8, gap: 6 },
   addrText: { fontSize: 22, fontFamily: "monospace" },
   addrHint: { opacity: 0.7 },
-
   chip: {
     alignSelf: "flex-start",
     marginTop: 6,
@@ -410,7 +411,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "rgba(80,255,160,0.12)",
   },
-
   card: {
     marginTop: 14,
     padding: 14,
@@ -418,17 +418,14 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: "rgba(255,255,255,0.06)",
   },
-
   bigTimer: { fontSize: 34, fontFamily: "monospace" },
   muted: { opacity: 0.7 },
   updatedText: { opacity: 0.65, marginTop: -2 },
-
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-
   infoBtn: {
     width: 26,
     height: 26,
@@ -438,7 +435,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.10)",
   },
   infoBtnText: { opacity: 0.85, fontFamily: "monospace" },
-
   progressTrack: {
     height: 10,
     borderRadius: 999,
@@ -451,7 +447,6 @@ const styles = StyleSheet.create({
     height: "100%",
     backgroundColor: "rgba(80,255,160,0.35)",
   },
-
   modalOverlay: {
     flex: 1,
     padding: 20,
@@ -472,7 +467,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.12)",
   },
-
   disconnect: {
     marginTop: 24,
     padding: 14,
@@ -480,7 +474,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(255,80,80,0.18)",
   },
-
   switchWallet: {
     marginTop: 14,
     padding: 14,
@@ -488,19 +481,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.10)",
   },
-
   row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 6,
   },
-
-  notifBtnSecondary: {
+  notifBtn: {
     marginTop: 10,
     padding: 12,
     borderRadius: 12,
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(255,255,255,0.12)",
   },
 });
