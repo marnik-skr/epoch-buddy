@@ -5,11 +5,10 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
-
-import { Platform } from "react-native";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -31,6 +30,7 @@ export default function RootLayout() {
   useEffect(() => {
     (async () => {
       try {
+        // Android channel config (does NOT prompt for permission)
         if (Platform.OS === "android") {
           await Notifications.setNotificationChannelAsync("epoch", {
             name: "Epoch alerts",
@@ -38,24 +38,19 @@ export default function RootLayout() {
           });
         }
 
-        const { status } = await Notifications.getPermissionsAsync();
-        if (status !== "granted") {
-          await Notifications.requestPermissionsAsync();
-        }
+        // ❗ Do NOT request notification permissions here.
+        // Ask only when user taps "Enable notifications" in the UI.
       } catch (e) {
-        console.log("Notifications permission error:", e);
+        console.log("Notifications setup error:", e);
       }
     })();
   }, []);
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="modal"
-          options={{ presentation: "modal", title: "Modal" }}
-        />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="modal" options={{ presentation: "modal", title: "Modal" }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

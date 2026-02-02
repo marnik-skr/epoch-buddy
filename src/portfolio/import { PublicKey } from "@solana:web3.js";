@@ -1,0 +1,27 @@
+import { Connection, PublicKey } from "@solana/web3.js";
+import { getConnection } from "../solana/connection";
+
+const STAKE_PROGRAM_ID = new PublicKey("Stake11111111111111111111111111111111111111");
+
+export async function fetchNativeStakedSol(ownerPubkeyBase58: string): Promise<number> {
+  const connection: Connection = getConnection();
+  const owner = new PublicKey(ownerPubkeyBase58);
+
+  // Phase 1 (simple): fetch parsed stake accounts and filter client-side
+  const accounts = await connection.getParsedProgramAccounts(STAKE_PROGRAM_ID);
+
+  let totalLamports = 0;
+
+  for (const a of accounts) {
+    const info: any = a.account.data?.parsed?.info;
+    const authorized = info?.meta?.authorized;
+    const staker = authorized?.staker;
+    const withdrawer = authorized?.withdrawer;
+
+    if (staker === owner.toBase58() || withdrawer === owner.toBase58()) {
+      totalLamports += a.account.lamports;
+    }
+  }
+
+  return totalLamports;
+}
