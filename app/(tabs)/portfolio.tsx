@@ -3,19 +3,25 @@ import { ThemedView } from "@/components/themed-view";
 import { useFocusEffect } from "@react-navigation/native";
 import { Redirect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
-
+import {
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+  Pressable,
+  Linking,
+} from "react-native";
 import { loadPubkey } from "../../src/solana/session";
 import { shortAddress } from "../../src/ui/walletUi";
-
 import { fetchSolBalanceLamports } from "../../src/portfolio/solBalance";
 import { fetchNativeStakedSol } from "../../src/portfolio/nativeStake";
 import { fetchSkrPosition } from "../../src/portfolio/skrPosition";
 
+const SKR_STAKE_URL = "https://stake.solanamobile.com";
+
 export default function PortfolioScreen() {
   const [pubkey, setPubkey] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
-
   const [refreshing, setRefreshing] = useState(false);
 
   // SOL
@@ -31,14 +37,12 @@ export default function PortfolioScreen() {
 
   // prevent overlapping calls
   const inFlightRef = useRef(false);
-
   // cooldown to reduce 429s on public RPC
   const lastFetchMsRef = useRef(0);
   const COOLDOWN_MS = 6_000;
 
   const refresh = useCallback(async (force = false) => {
     if (inFlightRef.current) return;
-
     const now = Date.now();
     if (!force && now - lastFetchMsRef.current < COOLDOWN_MS) return;
 
@@ -85,6 +89,14 @@ export default function PortfolioScreen() {
     }, [refresh])
   );
 
+  const openSkrStake = useCallback(async () => {
+    try {
+      await Linking.openURL(SKR_STAKE_URL);
+    } catch {
+      setErr("Couldn't open SKR staking site.");
+    }
+  }, []);
+
   if (!ready) {
     return (
       <ScrollView contentContainerStyle={styles.container}>
@@ -130,13 +142,19 @@ export default function PortfolioScreen() {
 
         <View style={styles.row}>
           <ThemedText style={styles.muted}>Rewards</ThemedText>
-          <ThemedText style={styles.value}>—</ThemedText>
+          <ThemedText style={[styles.value, styles.muted]}>Coming soon</ThemedText>
         </View>
       </ThemedView>
 
       {/* SKR card */}
       <ThemedView style={styles.card}>
-        <ThemedText type="subtitle">SKR</ThemedText>
+        <View style={styles.cardHeader}>
+          <ThemedText type="subtitle">SKR</ThemedText>
+
+          <Pressable onPress={openSkrStake} style={styles.linkBtn} hitSlop={10}>
+            <ThemedText style={styles.linkText}>Open staking</ThemedText>
+          </Pressable>
+        </View>
 
         <View style={styles.row}>
           <ThemedText style={styles.muted}>Balance</ThemedText>
@@ -148,14 +166,22 @@ export default function PortfolioScreen() {
         <View style={styles.row}>
           <ThemedText style={styles.muted}>Staked</ThemedText>
           <ThemedText style={styles.value}>
-            {skrStaked == null ? "—" : `${skrStaked.toLocaleString()} SKR`}
+            {skrStaked == null ? (
+              <ThemedText style={styles.muted}>Coming soon</ThemedText>
+            ) : (
+              `${skrStaked.toLocaleString()} SKR`
+            )}
           </ThemedText>
         </View>
 
         <View style={styles.row}>
           <ThemedText style={styles.muted}>Rewards earned</ThemedText>
           <ThemedText style={styles.value}>
-            {skrRewards == null ? "—" : `+ ${skrRewards.toLocaleString()} SKR`}
+            {skrRewards == null ? (
+              <ThemedText style={styles.muted}>Coming soon</ThemedText>
+            ) : (
+              `+ ${skrRewards.toLocaleString()} SKR`
+            )}
           </ThemedText>
         </View>
       </ThemedView>
@@ -171,6 +197,23 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     gap: 6,
     backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  linkBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  linkText: {
+    fontSize: 12,
+    opacity: 0.9,
+    fontFamily: "monospace",
   },
   row: {
     flexDirection: "row",
