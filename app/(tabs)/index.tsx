@@ -30,6 +30,8 @@ import {
   scheduleEpochNotifications,
 } from "../../src/notifications/epochNotifications";
 
+import { nukeAllEpochNotifications } from "../../src/notifications/epochNotifications";
+
 const NOTIF_1H_KEY = "epochbuddy_notify_1h";
 const NOTIF_END_KEY = "epochbuddy_notify_end";
 
@@ -388,6 +390,19 @@ export default function HomeScreen() {
             <ThemedText type="defaultSemiBold">Enable notifications</ThemedText>
           </Pressable>
         )}
+
+        {__DEV__ && (
+          <Pressable
+            style={styles.notifBtn}
+            onPress={async () => {
+              await nukeAllEpochNotifications();
+              Alert.alert("Done ✅", "Cleared all scheduled notifications (dev).");
+            }}
+          >
+            <ThemedText type="defaultSemiBold">Dev: Nuke notifications</ThemedText>
+          </Pressable>
+        )}
+
       </ThemedView>
     </ScrollView>
   );

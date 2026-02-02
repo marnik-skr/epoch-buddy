@@ -82,3 +82,10 @@ export async function getScheduledEpochNotificationCount() {
   const ids = await getIds();
   return ids.length;
 }
+
+export async function nukeAllEpochNotifications() {
+  // cancels EVERYTHING scheduled by the app (not just ids we tracked)
+  await Notifications.cancelAllScheduledNotificationsAsync();
+  await SecureStore.deleteItemAsync(IDS_KEY);
+}
+

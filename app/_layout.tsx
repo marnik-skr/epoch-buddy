@@ -18,13 +18,12 @@ export const unstable_settings = {
 // Show notifications when app is foregrounded
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowBanner: true, // ✅ new
-    shouldShowList: true,  
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: false,
     shouldSetBadge: false,
   }),
 });
-
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
