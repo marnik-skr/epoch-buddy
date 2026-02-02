@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- white mark on transparent background -->
+  <g fill="#FFFFFF">
+    <!-- top parallelogram -->
+    <path d="M220 320 L760 320 L700 420 L160 420 Z" />
+    <!-- middle parallelogram (shifted right) -->
+    <path d="M280 470 L820 470 L760 570 L220 570 Z" />
+    <!-- bottom parallelogram -->
+    <path d="M220 620 L760 620 L700 720 L160 720 Z" />
+  </g>
+
+  <!-- epoch horizon line -->
+  <path d="M160 750 H760" stroke="#FFFFFF" stroke-width="18" stroke-linecap="round"/>
+</svg>
