@@ -19,7 +19,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.epochbuddy"
+      "package": "com.marnik.epochbuddy"
     },
     "web": {
       "output": "static",
