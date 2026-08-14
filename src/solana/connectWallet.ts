@@ -32,19 +32,27 @@ function toPubkeyBase58(addr: unknown): string {
       const bytes = Uint8Array.from(Buffer.from(addr, "base64"));
       return bs58.encode(bytes);
     } catch {
-      throw new Error("Wallet returned address as an unknown string format (not base58/base64)");
+      throw new Error(
+        "Wallet returned address as an unknown string format (not base58/base64)",
+      );
     }
   }
 
-  throw new Error(`Unsupported address type: ${Object.prototype.toString.call(addr)}`);
+  throw new Error(
+    `Unsupported address type: ${Object.prototype.toString.call(addr)}`,
+  );
 }
 
 export async function connectWallet(): Promise<string> {
   if (Platform.OS !== "android") {
-    throw new Error("Solana Mobile wallet connect is Android-only (Saga/Seeker).");
+    throw new Error(
+      "Solana Mobile wallet connect is Android-only (Saga/Seeker).",
+    );
   }
 
-  const { transact } = await import("@solana-mobile/mobile-wallet-adapter-protocol");
+  const { transact } = await import(
+    "@solana-mobile/mobile-wallet-adapter-protocol"
+  );
 
   return transact(async (wallet) => {
     const auth = await wallet.authorize({
@@ -52,7 +60,7 @@ export async function connectWallet(): Promise<string> {
       identity: {
         name: "Epoch Buddy",
         uri: "https://marnik-skr.github.io/epoch-buddy/",
-        icon: "logo.svg",
+        icon: "logo.png",
       },
     });
 
