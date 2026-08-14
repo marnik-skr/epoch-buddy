@@ -48,8 +48,12 @@ export async function connectWallet(): Promise<string> {
 
   return transact(async (wallet) => {
     const auth = await wallet.authorize({
-      cluster: "mainnet-beta",
-      identity: { name: "Epoch Buddy" },
+      chain: "solana:mainnet",
+      identity: {
+        name: "Epoch Buddy",
+        uri: "https://marnik-skr.github.io/epoch-buddy/",
+        icon: "logo.svg",
+      },
     });
 
     await saveAuthToken(auth.auth_token);
