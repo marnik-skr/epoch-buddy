@@ -1,63 +1,468 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Epoch Buddy</title>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Epoch Buddy — a Solana Mobile app for tracking epochs, wallet information and epoch notifications. Published by Marnik Labs.">
+  <title>Epoch Buddy | Marnik Labs</title>
 
-    <style>
-      body {
-        margin: 0;
-        background: #09090b;
-        color: #ffffff;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #050505;
+      --card: #101010;
+      --card2: #151515;
+      --text: #f5f5f5;
+      --muted: #999;
+      --border: #252525;
+      --accent: #14f195;
+      --purple: #9945ff;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 75% 0%, rgba(153,69,255,.12), transparent 28%),
+        radial-gradient(circle at 20% 20%, rgba(20,241,149,.08), transparent 24%),
+        var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      line-height: 1.6;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .container {
+      width: min(1120px, calc(100% - 40px));
+      margin: auto;
+    }
+
+    nav {
+      height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+    }
+
+    .brand img {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+    }
+
+    .navlinks {
+      display: flex;
+      gap: 28px;
+      color: #aaa;
+      font-size: 14px;
+    }
+
+    .navlinks a:hover {
+      color: white;
+    }
+
+    .hero {
+      min-height: 670px;
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      align-items: center;
+      gap: 70px;
+      padding: 90px 0;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      padding: 7px 12px;
+      border: 1px solid rgba(20,241,149,.25);
+      background: rgba(20,241,149,.06);
+      color: var(--accent);
+      border-radius: 100px;
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      font-size: clamp(52px, 8vw, 92px);
+      line-height: .94;
+      letter-spacing: -.065em;
+      margin-bottom: 28px;
+    }
+
+    .gradient {
+      background: linear-gradient(90deg, var(--accent), #62e7ff, var(--purple));
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .lead {
+      color: #aaa;
+      font-size: 19px;
+      max-width: 620px;
+      margin-bottom: 34px;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      padding: 13px 20px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .primary {
+      background: white;
+      color: black;
+      border-color: white;
+    }
+
+    .secondary:hover {
+      border-color: #555;
+    }
+
+    .app-card {
+      background: linear-gradient(145deg, #151515, #090909);
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      padding: 45px;
+      box-shadow: 0 40px 100px rgba(0,0,0,.45);
+    }
+
+    .app-card img {
+      display: block;
+      width: 145px;
+      height: 145px;
+      object-fit: contain;
+      margin: 10px auto 35px;
+    }
+
+    .app-card h2 {
+      text-align: center;
+      font-size: 29px;
+      margin-bottom: 8px;
+    }
+
+    .app-card p {
+      color: var(--muted);
+      text-align: center;
+    }
+
+    section {
+      padding: 100px 0;
+      border-top: 1px solid rgba(255,255,255,.07);
+    }
+
+    .section-label {
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: .16em;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 15px;
+    }
+
+    .section-title {
+      font-size: clamp(36px, 5vw, 55px);
+      letter-spacing: -.045em;
+      line-height: 1.05;
+      max-width: 720px;
+      margin-bottom: 50px;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .feature {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 30px;
+    }
+
+    .feature .number {
+      color: var(--accent);
+      font-family: monospace;
+      margin-bottom: 38px;
+    }
+
+    .feature h3 {
+      margin-bottom: 10px;
+      font-size: 19px;
+    }
+
+    .feature p {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+    }
+
+    .about-grid p {
+      color: #aaa;
+      font-size: 17px;
+      margin-bottom: 18px;
+    }
+
+    .info {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .info-row {
+      padding: 19px 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      font-size: 14px;
+    }
+
+    .info-row:last-child {
+      border-bottom: 0;
+    }
+
+    .info-row span:first-child {
+      color: var(--muted);
+    }
+
+    footer {
+      padding: 55px 0;
+      border-top: 1px solid rgba(255,255,255,.07);
+      color: #777;
+      font-size: 13px;
+    }
+
+    .footer-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 30px;
+      flex-wrap: wrap;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 22px;
+    }
+
+    @media (max-width: 800px) {
+      .hero,
+      .about-grid {
+        grid-template-columns: 1fr;
       }
 
-      main {
-        max-width: 700px;
-        margin: 0 auto;
-        padding: 100px 24px;
-        text-align: center;
+      .hero {
+        gap: 40px;
       }
 
-      img {
-        width: 140px;
-        height: auto;
-        margin-bottom: 24px;
+      .features {
+        grid-template-columns: 1fr;
       }
 
-      h1 {
-        font-size: 42px;
-        margin: 0 0 16px;
+      .navlinks {
+        display: none;
       }
+    }
+  </style>
+</head>
 
-      p {
-        color: #a1a1aa;
-        font-size: 18px;
-        line-height: 1.6;
-      }
+<body>
 
-      a {
-        color: #14f195;
-      }
-    </style>
-  </head>
+<div class="container">
+  <nav>
+    <a class="brand" href="#">
+      <img src="logo.png" alt="Epoch Buddy">
+      <span>Marnik Labs</span>
+    </a>
 
-  <body>
-    <main>
-      <img src="logo.svg" alt="Epoch Buddy logo" />
+    <div class="navlinks">
+      <a href="#epoch-buddy">Epoch Buddy</a>
+      <a href="#publisher">Publisher</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="support.html">Support</a>
+    </div>
+  </nav>
 
-      <h1>Epoch Buddy</h1>
+  <main class="hero">
+    <div>
+      <div class="eyebrow">Built for the Solana ecosystem</div>
 
-      <p>
-        A Solana mobile dApp for tracking epochs and wallet-related information.
+      <h1>
+        Meet your<br>
+        <span class="gradient">Epoch Buddy.</span>
+      </h1>
+
+      <p class="lead">
+        A focused Solana Mobile application for tracking epoch progress,
+        wallet information and useful epoch notifications.
       </p>
 
-      <p>
-        <a href="https://github.com/marnik-skr/epoch-buddy">
+      <div class="buttons">
+        <a class="button primary"
+           href="https://github.com/marnik-skr/epoch-buddy">
           View source on GitHub
         </a>
+
+        <a class="button secondary" href="#epoch-buddy">
+          Explore Epoch Buddy
+        </a>
+      </div>
+    </div>
+
+    <div class="app-card">
+      <img src="logo.png" alt="Epoch Buddy logo">
+      <h2>Epoch Buddy</h2>
+      <p>Solana epochs. Simple, mobile, useful.</p>
+    </div>
+  </main>
+</div>
+
+<section id="epoch-buddy">
+  <div class="container">
+    <div class="section-label">Epoch Buddy</div>
+
+    <h2 class="section-title">
+      Built to make Solana epoch information easy to follow.
+    </h2>
+
+    <div class="features">
+      <article class="feature">
+        <div class="number">01</div>
+        <h3>Epoch Tracking</h3>
+        <p>
+          Follow the current Solana epoch and its progress from a
+          mobile-first interface.
+        </p>
+      </article>
+
+      <article class="feature">
+        <div class="number">02</div>
+        <h3>Mobile Wallet Adapter</h3>
+        <p>
+          Connect a compatible Solana wallet through the official
+          Solana Mobile Wallet Adapter flow.
+        </p>
+      </article>
+
+      <article class="feature">
+        <div class="number">03</div>
+        <h3>Epoch Notifications</h3>
+        <p>
+          Optional notifications help users keep track of important
+          points during an epoch.
+        </p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="publisher">
+  <div class="container about-grid">
+
+    <div>
+      <div class="section-label">Publisher</div>
+      <h2 class="section-title">Marnik Labs</h2>
+
+      <p>
+        Marnik Labs is an independent software publisher building focused
+        mobile tools for the Solana ecosystem.
       </p>
-    </main>
-  </body>
+
+      <p>
+        Epoch Buddy is our Solana Mobile application designed around a
+        simple goal: make useful epoch information accessible from a clean,
+        purpose-built mobile experience.
+      </p>
+
+      <p>
+        Development is transparent and the Epoch Buddy source code is
+        publicly available on GitHub.
+      </p>
+    </div>
+
+    <div class="info">
+      <div class="info-row">
+        <span>Publisher</span>
+        <strong>Marnik Labs</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Developer</span>
+        <strong>Ionut Marius Urbaniak</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Application</span>
+        <strong>Epoch Buddy</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Platform</span>
+        <strong>Android / Solana Mobile</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Network</span>
+        <strong>Solana Mainnet</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Source</span>
+        <a href="https://github.com/marnik-skr/epoch-buddy">
+          github.com/marnik-skr/epoch-buddy ↗
+        </a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  <div class="container footer-row">
+    <div>© 2026 Marnik Labs · Epoch Buddy</div>
+
+    <div class="footer-links">
+      <a href="privacy.html">Privacy Policy</a>
+      <a href="support.html">Support</a>
+      <a href="https://github.com/marnik-skr/epoch-buddy">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+</body>
 </html>
