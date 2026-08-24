@@ -1,85 +1,114 @@
 # Epoch Buddy
 
-**Epoch Buddy** is a lightweight Solana companion app that helps you understand the current epoch at a glance.
+**Epoch Buddy** is an open-source Solana mobile companion app for tracking the current Solana epoch, epoch progress, estimated completion time, and wallet-related staking information.
 
-Track how far we are into the epoch, estimate when the next one starts, and optionally get notified before it ends.
-
----
+The project is designed primarily for Android and the Solana Mobile ecosystem.
 
 ## Features
 
-- Live epoch countdown
-- Progress bar based on slot index
-- Optional notifications
-  - 1 hour before epoch end
-  - At epoch end
-- Wallet-safe
-  - Read-only
-  - No funds moved
-  - Signature only (when required)
+- Current Solana epoch number
+- Live epoch progress
+- Remaining epoch time estimate
+- Current slot information
+- Wallet connection through Solana Mobile Wallet Adapter (MWA)
+- Read-only wallet and staking information
+- Optional epoch notifications
+- Persistent wallet session
+- Dark mobile-first interface
 
----
+## Wallet Integration
 
-## Screens
+Epoch Buddy uses the Solana Mobile Wallet Adapter (MWA) to connect to compatible Solana wallets.
 
-- Welcome – connect your wallet
-- Epoch – current epoch, ETA, slot progress
-- Portfolio – staking-related insights (read-only)
+The app does not request or store wallet private keys or seed phrases.
 
----
+Wallet authorization is performed by the user's wallet application. Epoch Buddy stores only the information required to restore the authorized session locally on the device.
 
-## Tech Stack
+Epoch Buddy does not transfer funds or initiate transactions as part of its core epoch-tracking functionality.
 
-- Expo / React Native
-- TypeScript
-- expo-router
-- Solana RPC
-- react-native-svg
-- expo-notifications
+## Epoch Tracking
 
-SVG support is enabled via `react-native-svg-transformer`.
+Epoch information is retrieved from the Solana network using RPC requests.
 
----
+The application uses Solana epoch and slot information to calculate:
 
-## Getting Started (Local Dev)
+- Current epoch
+- Epoch progress
+- Remaining slots
+- Estimated time until the next epoch
 
-```bash
-npm install
-npx expo start
-```
-
-Run on:
-- Android device or emulator
-- iOS simulator
-- Expo Go (limited feature support)
-
----
+The displayed completion time is an estimate because Solana slot duration can vary.
 
 ## Notifications
 
-Notifications are opt-in and only scheduled after explicit user interaction.
+Users can optionally enable notifications for important epoch events:
 
-If notification permissions are denied, the app continues to function normally without alerts.
+- Approximately one hour before the current epoch ends
+- When the current epoch is expected to end
 
----
+Notifications are opt-in. If notification permission is declined, all other Epoch Buddy functionality continues to work normally.
 
-## Development Notes
+## Privacy & Security
 
-- File-based routing via expo-router
-- SVGs are imported as React components
-- Notification scheduling is debounced to avoid unnecessary RPC calls
-- Designed with dark mode as the default (Solana mobile friendly)
+Epoch Buddy is designed to collect as little user information as possible.
 
----
+- No private keys are collected or stored
+- No seed phrases are collected
+- No advertising SDKs
+- No user profiling
+- No analytics tracking
+- Wallet/session information is stored locally on the device
+- Network requests are limited to services required for application functionality
 
-## Security & Privacy
+## Technology
 
-- No private keys are stored
-- Wallet addresses are stored locally only
-- No analytics or tracking
-- No background network activity beyond Solana RPC requests
+Epoch Buddy is built with:
 
----
+- React Native
+- Expo
+- TypeScript
+- Expo Router
+- Solana Mobile Wallet Adapter
+- Solana RPC
+- Expo Secure Store
+- Expo Notifications
+- React Native SVG
+
+## Project Structure
+
+    app/                    Application screens and routes
+    src/solana/             Solana wallet and session integration
+    src/notifications/      Epoch notification logic
+    assets/                 Application images and icons
+    docs/                   Publisher website and public documentation
+    android/                Android-specific configuration
+
+## Local Development
+
+Clone the repository:
+
+    git clone https://github.com/marnik-skr/epoch-buddy.git
+    cd epoch-buddy
+    npm install
+    npx expo start
+
+Some functionality, particularly Solana Mobile Wallet Adapter integration, requires a compatible Android device and wallet.
+
+## Android
+
+Application ID:
+
+    com.marnik.epochbuddy
+
+Epoch Buddy is built and tested as an Android application for the Solana Mobile ecosystem.
+
+## Open Source
+
+The source code is publicly available so users and reviewers can inspect how Epoch Buddy interacts with wallets, stores session information, requests permissions, and communicates with the Solana network.
+
+## Support
+
+Bug reports and technical issues can be submitted through the GitHub Issues section of this repository.
 
 ## License
 
